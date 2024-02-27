@@ -1,5 +1,5 @@
 [package]
-name = "RustyOthelloAI"
+name = "rusty_othello_ai"
 version = "0.1.0"
 edition = "2021"
 
