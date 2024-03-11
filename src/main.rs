@@ -3,7 +3,11 @@ use std::thread;
 use std::time::Duration;
 use std::collections::{BinaryHeap, HashMap};
 use std::cmp:: Ordering;
+
+use crate::mcts::{MCTS,Node};
+use crate::othello::State;
 mod mcts;
+mod othello;
 
 
 const BOARD_SIZE: usize = 8*8;
@@ -40,34 +44,34 @@ fn main() {
     let response = get_game_state();
     println!("Received userId: {}", response["userId"]);
     let res = send_move("b6").unwrap();
-    print!("Response status: {} {}", res.status(), res.status_text());
+    println!("Response status: {} {}", res.status(), res.status_text());
     //======== This block is just for testing ========================
 }
 
 
-fn a_star_search(start: [char; BOARD_SIZE], goal) -> Vec<OthelloMove> {
+fn a_star_search(start: [char; BOARD_SIZE]) -> Vec<OthelloMove> {
     let mut heap: BinaryHeap<GameState> = BinaryHeap::new();
-    let mut came_from = HashMap::new();
+    let mut came_from: HashMap<[char; 64], ([char; BOARD_SIZE],Option<OthelloMove>)> = HashMap::new();
     let mut cost_map = HashMap::new();
 
     heap.push(GameState {board: start, cost: 0, is_over: false});
-    came_from.insert(start, (None, None));
+    came_from.insert(start, (start, None));
     cost_map.insert(start, 0.0);
     loop {
-        let Some(GameState { board, cost, is_over}) = heap.pop();
-        if is_over || cost == SEARCH_DEPTH { 
+        let current_state = heap.pop().unwrap();
+        if current_state.is_over || current_state.cost == SEARCH_DEPTH { 
            let mut path: Vec<OthelloMove> = Vec::new();
-            let mut current = came_from[&board].0.unwrap();
-            while current != start {
-                path.push(current.1);
-                current = came_from[&current].0.unwrap();
+            let mut current = came_from[&current_state.board].clone();
+            while current.0 != start {
+                path.push(current.1.unwrap());
+                current = came_from[&current.0].clone();
             }
             path.reverse();
             return path.clone(); 
         }
         
-        for next_move in get_possible_moves(board).into_iter() {
-            let next_state = generate_state(board, next_move);
+        for next_move in get_possible_moves(current_state.board).into_iter() {
+            let next_state = generate_state(current_state.board, next_move);
 
             heap.push(next_state);
         }
@@ -103,14 +107,14 @@ fn get_game_state() -> serde_json::Value {
 }
 
 fn get_json() -> Result<Response, ureq::Error> {
-    let url = "http://jsonplaceholder.typicode.com/posts/1";
+    let url = "https://jsonplaceholder.typicode.com/posts/1";
     let resp = ureq::get(url)
         .call();
     Ok(resp?)
 }
 
 fn send_move(ai_move: &str) -> Result<Response, ureq::Error> {
-    let url = "http://jsonplaceholder.typicode.com/poss";
+    let url = "https://jsonplaceholder.typicode.com/posts";
     let json_body = json!({
         "title": ai_move
     });
