@@ -50,23 +50,23 @@ pub struct MCTS {
     tree: Vec<Vec<usize>>,
     parents: Vec<Option<usize>>,
     state_map: HashMap<State, usize>,
-    root: Node,
 }
 
 impl MCTS {
     pub fn new(node: Node) -> Self {
+        let mut map = HashMap::new();
+        map.insert(node.state, 0 as usize);
         Self {
-            tree: Vec::new(),
-            parents: Vec::new(),
-            state_map: HashMap::new(),
-            size: 0,
-            nodes: Vec::new(),
-            root: node,
+            tree: vec![Vec::new()],
+            parents: vec![None],
+            state_map: map.to_owned(),
+            size: 1,
+            nodes: vec![node],
         }
     }
     pub fn search(&mut self, from: State, iterations: u64) -> Result<Action, ()> {
         if let Some(root) = self.state_map.get(&from).cloned() {
-            for i in 0..iterations {
+            for _i in 0..iterations {
                 //println!("Iteration: {i} of {iterations}");
                 let node_index = self.select(root.clone()).clone();
                 //println!("Expanding {node_index}");
