@@ -7,6 +7,7 @@ use mcts::{MCTS, Node};
 use othello::{State, Action, parse_state};
 
 
+
 const SERVER_URL: &str = "http://127.0.0.1:8080";
 
 fn main() {
@@ -24,21 +25,6 @@ fn main() {
     }
 
 
-    /*/======== This block is just for testing ========================
-    let response = get_game_state();
-    println!("Received userId: {}", response["userId"]);
-    let res = send_move("b6").unwrap();
-    println!("Response status: {} {}", res.status(), res.status_text());
-
-
-    let test_state = State::new();
-    let mut mcts = MCTS::new(Node::new(test_state, None, test_state.get_actions()));
-    sleep(Duration::from_secs(3));
-    println!("Starting search!");
-    println!("Best action: {:?}", mcts.search(test_state, 100000));
-
-
-    //======== This block is just for testing ========================*/
 }
 
 
@@ -51,7 +37,7 @@ fn get_game_state() -> State {
         match get_json() {
             Ok(resp) => return parse_state(resp.into_json().expect("Error parsing response to json")),
             Err(_e) => {
-                thread::sleep(delay);
+                sleep(delay);
                 delay *= 2;
             },
         }

@@ -1,9 +1,11 @@
+use rand::Rng;
 
 
+const BOARD_SIZE: usize = 8;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct State {
-    board: [[char; 8]; 8],
+    board: [[char; BOARD_SIZE]; BOARD_SIZE],
     next_turn: char,
 }
 impl State {
@@ -21,29 +23,83 @@ impl State {
             
     }
     pub fn get_actions(&self) -> Vec<Action> {
-        // TODO return available actions for the given state
-        let a = rand::random();
-        let b = rand::random::<usize>();
-        vec![Action::new(a, b), Action::new(b, a)]
-    }
-    pub fn do_action(&mut self, _action: Action) -> State {
-        // TODO
-        let r_char = rand::random::<char>();
-        State {
-            next_turn: r_char,
-            board: [[r_char; 8]; 8]
+        let mut actions: Vec<Action> = Vec::new();
+        let mut tmp_action = Action::new(self.next_turn, 0, 0);
+        for (x, row) in self.board.iter().enumerate(){
+            for (y, ch) in row.iter().enumerate(){
+                let mut tmp_state = self.clone();
+                tmp_action.x = x;
+                tmp_action.y = y;
+                if *ch == 'E' {
+                    for dir in vec![(0,1), (1,0), (1,1), (0,-1)].iter() {
+                        if tmp_state.flip_pieces(tmp_action.clone(), dir.0, dir.1){
+                            actions.push(tmp_action.clone());
+                            break
+                        }
+                    }   
+                }
+            }
         }
+
+
+        return actions;
+    }
+
+    pub fn do_action(&mut self, action: Action) -> State {
+        let next_turn = match self.next_turn {
+            'B' => 'W',
+            'W' => 'B',
+            _ => 'E',
+        };
+        let mut board = self.board.clone();
+        board[action.x][action.y] = action.color.clone();
+        let mut new_state = State {
+            next_turn: next_turn.clone(),
+            board: board.to_owned(),
+        };
+        for dir in vec![(0,1), (1,0), (1,1), (0,-1)].iter() {
+            new_state.flip_pieces(action.clone(), dir.0, dir.1);
+        }
+        new_state
+    }
+
+    fn flip_pieces(&mut self, action: Action, x1: isize, y1: isize) -> bool {
+        if (x1 < 0 && action.x == 0) || (y1 < 0 && action.y == 0){
+            return false;
+        }
+        let x_index = (action.x as isize + x1) as usize;
+        let y_index = (action.y as isize + y1) as usize;
+        if x_index >= BOARD_SIZE || y_index >= BOARD_SIZE {
+            return false;
+        }
+        if self.board[x_index][y_index] == action.color {
+            return true
+        }
+        match self.next_turn == self.board[x_index][y_index] {
+            true => if self.flip_pieces(Action::new(action.color,x_index.clone(),y_index.clone()), x1 , y1) {
+                self.board[x_index][y_index] = action.color;
+                true
+            }
+                else {
+                    false
+                },
+            false => false,
+        } 
     }
 }
+
+
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Action {
-    x: usize,
-    y: usize,
+    pub color: char,
+    pub x: usize,
+    pub y: usize,
 }
 
 impl Action {
-    fn new(x1: usize, y1: usize) -> Self {
+    pub fn new(player: char, x1: usize, y1: usize) -> Self {
         Self {
+            color: player,
             x: x1,
             y: y1,
         }
@@ -51,6 +107,46 @@ impl Action {
 }
 
 
-pub fn simulate_game(_state: &mut State) -> bool {
-    rand::random::<bool>()
+pub fn simulate_game(state: &mut State) -> bool {
+    let mut test_state = state.clone();
+    let mut test_actions = test_state.get_actions();
+    while test_actions.len() > 0 {
+        let mut rng = rand::thread_rng();
+        let index = rng.gen_range(0..test_actions.len());
+        let do_act = test_actions[index].clone();
+        test_state = test_state.do_action(do_act);
+        test_actions = test_state.get_actions();
+    }
+    caculate_win(state.next_turn, test_state)
+}
+
+fn caculate_win(player: char, state: State) -> bool {
+    let p1 = player;
+    let p2 = match p1 {
+        'W' => 'B',
+        _ => 'W',
+    };
+    let mut p1_score: usize = 0;
+    let mut p2_score: usize = 0;
+    for row in state.board {
+        for ch in row {
+            if ch == p1 {
+                p1_score += 1;
+            }else if ch == p2 {
+                p2_score += 1;
+            }
+        } 
+    }
+    p1_score > p2_score
+}
+pub fn parse_state(_json: serde_json::Value) -> State {
+
+    State::new()
+}
+
+pub fn print_state(state: State) {
+    for i in state.board {
+        println!("{:?}", i);
+    }
+    println!("next: {}", state.next_turn)
 }
