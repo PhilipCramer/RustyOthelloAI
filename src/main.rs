@@ -1,73 +1,67 @@
-use ureq::{json, Response};
-use std::thread::{self, sleep};
+use ureq::Response;
+use std::thread::sleep;
 use std::time::Duration;
 mod mcts;
 mod othello;
 use mcts::{MCTS, Node};
-use othello::{State, Action};
-
-use crate::othello::print_state;
+use othello::{State, Action, parse_state};
 
 
+
+const SERVER_URL: &str = "http://127.0.0.1:8080";
 
 fn main() {
-
-    //======== This block is just for testing ========================
-    let response = get_game_state();
-    println!("Received userId: {}", response["userId"]);
-    let res = send_move("b6").unwrap();
-    println!("Response status: {} {}", res.status(), res.status_text());
-    
-
-    let mut test_state = State::new();
-    //let mut new_state = test_state.do_action(Action::new('B', 3, 2));
-    //print_state(new_state);
-    //print_state(new_state.do_action(Action::new('W', 2, 4)));
-
-    let mut mcts = MCTS::new(Node::new(test_state, None, test_state.get_actions()));
-    sleep(Duration::from_secs(1));
-    println!("Starting search!");
-    let mut best_action = mcts.search(test_state, 100000).unwrap();
-    println!("Best action: {:?}", best_action);
-    test_state = test_state.do_action(best_action);
-    best_action = mcts.search(test_state, 100000).unwrap();
-    println!("Best action: {:?}", best_action);
+    let start_state = State::new();
+    let mut mcts = MCTS::new(Node::new(start_state, None, start_state.get_actions()));
+    loop {
+        let current_state = get_game_state();
+        let choice = mcts.search(current_state, 10000);
+        if choice.is_ok() {
+            let _ = send_move(Some(choice.unwrap()));
+        }
+        else {
+            let _ = send_move(None);
+        }
+    }
 
 
-
-    //======== This block is just for testing ========================*/
 }
 
 
 
 
-fn get_game_state() -> serde_json::Value {
-    let mut delay = Duration::from_millis(10);
+fn get_game_state() -> State {
+    let mut delay = Duration::from_secs(3);
      loop {
 
         match get_json() {
-            Ok(resp) => return resp.into_json().unwrap(),
+            Ok(resp) => return parse_state(resp.into_json().expect("Error parsing response to json")),
             Err(_e) => {
-                thread::sleep(delay);
+                sleep(delay);
                 delay *= 2;
+                delay = std::cmp::min(Duration::from_millis(10000), delay);
             },
         }
     }
 }
 
 fn get_json() -> Result<Response, ureq::Error> {
-    let url = "http://jsonplaceholder.typicode.com/posts/1";
-    let resp = ureq::get(url)
-        .call();
-    Ok(resp?)
+    let url = format!("{}/board", SERVER_URL);
+    let resp = ureq::get(&url).call()?;
+    Ok(resp)
 }
 
-fn send_move(ai_move: &str) -> Result<Response, ureq::Error> {
-    let url = "http://jsonplaceholder.typicode.com/posts";
-    let json_body = json!({
-        "title": ai_move
-    });
-    let resp = ureq::post(url)
-        .send_json(json_body)?;
+fn send_move(ai_move: Option<Action>) -> Result<Response, ureq::Error> {
+    let resp;
+    let base_url = SERVER_URL.to_string();
+    let url;
+    if ai_move.is_some() {
+        let ai_choice = ai_move.unwrap();
+        url =  format!("{}/{}/{}/{}",base_url, "send", ai_choice.x, ai_choice.y);
+    }
+    else {
+        url = format!("{}/{}", base_url, "skip");
+    }
+    resp = ureq::post(&url).call()?;
     Ok(resp)
 }

@@ -2,15 +2,6 @@ use crate::othello::{State, Action, simulate_game};
 use std::collections::HashMap;
 
 
-#[derive(Debug, Clone, Copy)]
-struct MyF64(f64);
-
-impl PartialEq for MyF64 {
-    fn eq(&self, other: &Self) -> bool {
-        (self.0 - other.0).abs() < std::f64::EPSILON
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct Node {
     state: State,
@@ -45,7 +36,7 @@ impl Node {
 
 #[derive()]
 pub struct MCTS {
-    size: usize,
+    pub size: usize,
     nodes: Vec<Node>,
     tree: Vec<Vec<usize>>,
     parents: Vec<Option<usize>>,
@@ -120,16 +111,24 @@ impl MCTS {
     }
     fn expand(&mut self, node_index: usize) -> usize {
         let mut node = self.nodes.get_mut(node_index).expect("No node to expand").clone();
-        for (_i, action) in node.untried_actions.iter().enumerate() {
-            self.add_node(
-                node.state.clone().do_action(action.clone()), 
-                Some(action.clone()), 
+        if node.untried_actions.len() == 0 {
+            self.add_node(node.state.clone().do_action(None),
+                None, 
                 Some(node_index.clone())
             );
             self.tree.get_mut(node_index).expect("No node").push(self.size - 1);
-        }
-        while node.untried_actions.len() > 0 {
-            node.untried_actions.pop();
+        } else {
+            for (_i, action) in node.untried_actions.iter().enumerate() {
+                self.add_node(
+                    node.state.clone().do_action(Some(action.clone())), 
+                    Some(action.clone()), 
+                    Some(node_index.clone())
+                );
+                self.tree.get_mut(node_index).expect("No node").push(self.size - 1);
+            }
+            while node.untried_actions.len() > 0 {
+                node.untried_actions.pop();
+            }
         }
         node_index
     }
@@ -164,8 +163,14 @@ impl MCTS {
             }
         }
         println!("Best index: {best_index} with {max_visits} visits");
-        let action = &self.nodes.get(best_index).unwrap().clone().action.unwrap().clone();
-        Ok(action.clone())
+        let best_action = self.nodes.get(best_index).unwrap().clone().action.unwrap().clone();
+        let from_state = self.nodes.get(from_index).unwrap().clone().state;
+        if from_state.next_turn != best_action.color {
+            return Err(());
+        }
+        else {
+            Ok(best_action.clone())
+        }
     }
 }
 
