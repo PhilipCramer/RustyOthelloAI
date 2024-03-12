@@ -14,7 +14,7 @@ impl State {
     pub fn new() -> Self{
         let mut new = Self {
             board: [
-                ['E'; 8]; 8],
+                ['_'; 8]; 8],
             next_turn: 'B'
         };
         new.board[3][3] = 'W';
@@ -22,18 +22,18 @@ impl State {
         new.board[4][4] = 'W';
         new.board[4][3] = 'B';
         new
-            
+
     }
     pub fn get_actions(&self) -> Vec<Action> {
         let mut actions: Vec<Action> = Vec::new();
         let mut tmp_action = Action::new(self.next_turn, 0, 0);
         for (x, row) in self.board.iter().enumerate(){
             for (y, ch) in row.iter().enumerate(){
-                let mut tmp_state = self.clone();
                 tmp_action.x = x;
                 tmp_action.y = y;
-                if *ch == 'E' {
-                    for dir in vec![(0,1), (1,0), (1,1), (0,-1)].iter() {
+                if *ch == '_' {
+                    for dir in vec![(0,1), (1,0), (1,1), (0,-1), (-1,0), (-1,-1)].iter() {
+                        let mut tmp_state = self.clone();
                         if tmp_state.flip_pieces(tmp_action.clone(), dir.0, dir.1){
                             actions.push(tmp_action.clone());
                             break
@@ -51,7 +51,7 @@ impl State {
         let next_turn = match self.next_turn {
             'B' => 'W',
             'W' => 'B',
-            _ => 'E',
+            _ => '_',
         };
 
         let mut new_state = State {
@@ -62,7 +62,7 @@ impl State {
         if action.is_some() {
             let act = action.unwrap();
             new_state.board[act.x][act.y] = act.color.clone();
-            for dir in vec![(0,1), (1,0), (1,1), (0,-1)].iter() {
+            for dir in vec![(0,1), (1,0), (1,1), (0,-1), (-1,0), (-1,-1)].iter() {
                 new_state.flip_pieces(act.clone(), dir.0, dir.1);
             }
         }
@@ -70,27 +70,42 @@ impl State {
     }
 
     fn flip_pieces(&mut self, action: Action, x1: isize, y1: isize) -> bool {
-        if (x1 < 0 && action.x == 0) || (y1 < 0 && action.y == 0){
+        let mut to_flip = Vec::new();
+        let mut x_index = (action.x as isize + x1) as usize;
+        let mut y_index = (action.y as isize + y1) as usize;
+        let own_color: char = action.color;
+        let opponent = match action.color {
+            'B' => 'W',
+            _ => 'B',
+        };
+        if x_index > BOARD_SIZE - 1 || y_index > BOARD_SIZE - 1 {
             return false;
         }
-        let x_index = (action.x as isize + x1) as usize;
-        let y_index = (action.y as isize + y1) as usize;
-        if x_index >= BOARD_SIZE || y_index >= BOARD_SIZE {
-            return false;
-        }
-        if self.board[x_index][y_index] == action.color {
-            return true
-        }
-        match self.next_turn == self.board[x_index][y_index] {
-            true => if self.flip_pieces(Action::new(action.color,x_index.clone(),y_index.clone()), x1 , y1) {
-                self.board[x_index][y_index] = action.color;
-                true
+        loop{
+            //Bounds Check
+            if  x_index > BOARD_SIZE - 1  ||  y_index > BOARD_SIZE - 1 {
+                return false;
             }
-                else {
-                    false
+            match self.board[x_index][y_index] {
+                '_' => return false,
+                x if x == own_color => break,
+                k if k == opponent => {
+                    to_flip.push((x_index.clone(), y_index.clone()));
+                    x_index = (x_index as isize + x1) as usize;
+                    y_index = (y_index as isize + y1) as usize;
                 },
-            false => false,
-        } 
+                _ => break
+            }
+        }
+        if to_flip.len() == 0 {
+            return false;
+        }
+        else {
+            for (x,y) in to_flip.iter() {
+                self.board[*x][*y] = action.color;
+            }
+            true
+        }
     }
 }
 
@@ -158,9 +173,9 @@ pub fn parse_state(json: serde_json::Value) -> State {
                 for (y, cell) in row.iter().enumerate() {
                     let num = cell.as_u64().unwrap() as isize;
                     match  num {
-                       1 => new_board[x][y] = 'W',
-                       0 => new_board[x][y] = 'B',
-                       _ => new_board[x][y] = 'E',
+                        1 => new_board[x][y] = 'W',
+                        0 => new_board[x][y] = 'B',
+                        _ => new_board[x][y] = '_',
                     }
                 }
             }
