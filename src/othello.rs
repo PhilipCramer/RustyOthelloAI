@@ -51,11 +51,10 @@ impl State {
             'W' => 'B',
             _ => 'E',
         };
-        let mut board = self.board.clone();
 
         let mut new_state = State {
             next_turn: next_turn.clone(),
-            board: board.to_owned(),
+            board: self.board.clone(),
         };
 
         if action.is_some() {
@@ -144,9 +143,30 @@ fn caculate_win(player: char, state: State) -> bool {
     }
     p1_score > p2_score
 }
-pub fn parse_state(_json: serde_json::Value) -> State {
-    
-    State::new()
+pub fn parse_state(json: serde_json::Value) -> State {
+    let mut new_board = [['E';BOARD_SIZE]; BOARD_SIZE];
+    let next = match json["turn"] {
+        serde_json::Value::Bool(true) => 'W',
+        _ => 'B',
+
+    };
+    if let Some(board) = json["board"].as_array() {
+        for (x, row) in board.iter().enumerate() {
+            if let Some(row) = row.as_array() {
+                for (y, cell) in row.iter().enumerate() {
+                    match cell.as_u64(){
+                       Some(1) => new_board[x][y] = 'W',
+                       Some(0) => new_board[x][y] = 'B',
+                       _ => new_board[x][y] = 'E',
+                    }
+                }
+            }
+        }
+    }
+    State{
+        board: new_board,
+        next_turn: next,
+    }
 }
 
 pub fn print_state(state: State) {
