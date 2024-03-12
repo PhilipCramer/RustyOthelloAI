@@ -45,22 +45,27 @@ impl State {
         return actions;
     }
 
-    pub fn do_action(&mut self, action: Action) -> State {
+    pub fn do_action(&mut self, action: Option<Action>) -> State {
         let next_turn = match self.next_turn {
             'B' => 'W',
             'W' => 'B',
             _ => 'E',
         };
         let mut board = self.board.clone();
-        board[action.x][action.y] = action.color.clone();
+
         let mut new_state = State {
             next_turn: next_turn.clone(),
             board: board.to_owned(),
         };
-        for dir in vec![(0,1), (1,0), (1,1), (0,-1)].iter() {
-            new_state.flip_pieces(action.clone(), dir.0, dir.1);
+
+        if action.is_some() {
+            let act = action.unwrap();
+            new_state.board[act.x][act.y] = act.color.clone();
+            for dir in vec![(0,1), (1,0), (1,1), (0,-1)].iter() {
+                new_state.flip_pieces(act.clone(), dir.0, dir.1);
+            }
         }
-        new_state
+        return new_state.to_owned()
     }
 
     fn flip_pieces(&mut self, action: Action, x1: isize, y1: isize) -> bool {
@@ -114,7 +119,7 @@ pub fn simulate_game(state: &mut State) -> bool {
         let mut rng = rand::thread_rng();
         let index = rng.gen_range(0..test_actions.len());
         let do_act = test_actions[index].clone();
-        test_state = test_state.do_action(do_act);
+        test_state = test_state.do_action(Some(do_act));
         test_actions = test_state.get_actions();
     }
     caculate_win(state.next_turn, test_state)

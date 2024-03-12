@@ -120,16 +120,24 @@ impl MCTS {
     }
     fn expand(&mut self, node_index: usize) -> usize {
         let mut node = self.nodes.get_mut(node_index).expect("No node to expand").clone();
-        for (_i, action) in node.untried_actions.iter().enumerate() {
-            self.add_node(
-                node.state.clone().do_action(action.clone()), 
-                Some(action.clone()), 
+        if node.untried_actions.len() == 0 {
+            self.add_node(node.state.clone().do_action(None),
+                None, 
                 Some(node_index.clone())
             );
             self.tree.get_mut(node_index).expect("No node").push(self.size - 1);
-        }
-        while node.untried_actions.len() > 0 {
-            node.untried_actions.pop();
+        } else {
+            for (_i, action) in node.untried_actions.iter().enumerate() {
+                self.add_node(
+                    node.state.clone().do_action(Some(action.clone())), 
+                    Some(action.clone()), 
+                    Some(node_index.clone())
+                );
+                self.tree.get_mut(node_index).expect("No node").push(self.size - 1);
+            }
+            while node.untried_actions.len() > 0 {
+                node.untried_actions.pop();
+            }
         }
         node_index
     }
