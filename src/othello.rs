@@ -5,8 +5,8 @@ const BOARD_SIZE: usize = 8;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct State {
-    board: [[char; BOARD_SIZE]; BOARD_SIZE],
-    next_turn: char,
+    pub board: [[char; BOARD_SIZE]; BOARD_SIZE],
+    pub next_turn: char,
 }
 impl State {
     pub fn new() -> Self{
@@ -140,7 +140,7 @@ fn caculate_win(player: char, state: State) -> bool {
     p1_score > p2_score
 }
 pub fn parse_state(_json: serde_json::Value) -> State {
-
+    
     State::new()
 }
 
