@@ -66,7 +66,7 @@ impl State {
                 new_state.flip_pieces(act.clone(), dir.0, dir.1);
             }
         }
-        return new_state.to_owned()
+        return new_state.to_owned();
     }
 
     fn flip_pieces(&mut self, action: Action, x1: isize, y1: isize) -> bool {
@@ -78,23 +78,22 @@ impl State {
             'B' => 'W',
             _ => 'B',
         };
-        if x_index > BOARD_SIZE - 1 || y_index > BOARD_SIZE - 1 {
+        /*if x_index > BOARD_SIZE - 1 || y_index > BOARD_SIZE - 1 {
             return false;
-        }
+        }*/
         loop{
             //Bounds Check
             if  x_index > BOARD_SIZE - 1  ||  y_index > BOARD_SIZE - 1 {
                 return false;
             }
             match self.board[x_index][y_index] {
-                '_' => return false,
                 x if x == own_color => break,
                 k if k == opponent => {
                     to_flip.push((x_index.clone(), y_index.clone()));
                     x_index = (x_index as isize + x1) as usize;
                     y_index = (y_index as isize + y1) as usize;
                 },
-                _ => break
+                _ => return false,
             }
         }
         if to_flip.len() == 0 {
@@ -102,7 +101,7 @@ impl State {
         }
         else {
             for (x,y) in to_flip.iter() {
-                self.board[*x][*y] = action.color;
+                self.board[x.clone()][y.clone()] = action.color;
             }
             true
         }
