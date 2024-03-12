@@ -1,3 +1,5 @@
+use std::isize;
+
 use rand::Rng;
 
 
@@ -154,9 +156,10 @@ pub fn parse_state(json: serde_json::Value) -> State {
         for (x, row) in board.iter().enumerate() {
             if let Some(row) = row.as_array() {
                 for (y, cell) in row.iter().enumerate() {
-                    match cell.as_u64(){
-                       Some(1) => new_board[x][y] = 'W',
-                       Some(0) => new_board[x][y] = 'B',
+                    let num = cell.as_u64().unwrap() as isize;
+                    match  num {
+                       1 => new_board[x][y] = 'W',
+                       0 => new_board[x][y] = 'B',
                        _ => new_board[x][y] = 'E',
                     }
                 }
