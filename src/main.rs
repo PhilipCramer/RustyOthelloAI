@@ -4,7 +4,9 @@ use std::time::Duration;
 mod mcts;
 mod othello;
 use mcts::{MCTS, Node};
-use othello::State;
+use othello::{State, Action};
+
+use crate::othello::print_state;
 
 
 
@@ -15,16 +17,25 @@ fn main() {
     println!("Received userId: {}", response["userId"]);
     let res = send_move("b6").unwrap();
     println!("Response status: {} {}", res.status(), res.status_text());
+    
 
+    let mut test_state = State::new();
+    //let mut new_state = test_state.do_action(Action::new('B', 3, 2));
+    //print_state(new_state);
+    //print_state(new_state.do_action(Action::new('W', 2, 4)));
 
-    let test_state = State::new();
     let mut mcts = MCTS::new(Node::new(test_state, None, test_state.get_actions()));
-    sleep(Duration::from_secs(3));
+    sleep(Duration::from_secs(1));
     println!("Starting search!");
-    println!("Best action: {:?}", mcts.search(test_state, 100000));
+    let mut best_action = mcts.search(test_state, 100000).unwrap();
+    println!("Best action: {:?}", best_action);
+    test_state = test_state.do_action(best_action);
+    best_action = mcts.search(test_state, 100000).unwrap();
+    println!("Best action: {:?}", best_action);
 
 
-    //======== This block is just for testing ========================
+
+    //======== This block is just for testing ========================*/
 }
 
 
