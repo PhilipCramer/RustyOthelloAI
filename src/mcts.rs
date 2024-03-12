@@ -162,8 +162,12 @@ impl MCTS {
                 max_visits = node.visits;
             }
         }
-        println!("Best index: {best_index} with {max_visits} visits");
-        let best_action = self.nodes.get(best_index).unwrap().clone().action.unwrap().clone();
+        //println!("Best index: {best_index} with {max_visits} visits");
+        let best_node = self.nodes.get(best_index).unwrap().clone();
+        if best_node.action.is_none() {
+            return Err(());
+        };
+        let best_action = best_node.action.unwrap().clone();
         let from_state = self.nodes.get(from_index).unwrap().clone().state;
         if from_state.next_turn != best_action.color {
             return Err(());
