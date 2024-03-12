@@ -2,15 +2,6 @@ use crate::othello::{State, Action, simulate_game};
 use std::collections::HashMap;
 
 
-#[derive(Debug, Clone, Copy)]
-struct MyF64(f64);
-
-impl PartialEq for MyF64 {
-    fn eq(&self, other: &Self) -> bool {
-        (self.0 - other.0).abs() < std::f64::EPSILON
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct Node {
     state: State,
@@ -45,7 +36,7 @@ impl Node {
 
 #[derive()]
 pub struct MCTS {
-    size: usize,
+    pub size: usize,
     nodes: Vec<Node>,
     tree: Vec<Vec<usize>>,
     parents: Vec<Option<usize>>,
