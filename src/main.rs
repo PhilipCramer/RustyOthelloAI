@@ -1,5 +1,5 @@
-use ureq::{json, Response};
-use std::thread::{self, sleep};
+use ureq::Response;
+use std::thread::sleep;
 use std::time::Duration;
 mod mcts;
 mod othello;
@@ -31,7 +31,7 @@ fn main() {
 
 
 fn get_game_state() -> State {
-    let mut delay = Duration::from_millis(10);
+    let mut delay = Duration::from_secs(3);
      loop {
 
         match get_json() {
@@ -39,6 +39,7 @@ fn get_game_state() -> State {
             Err(_e) => {
                 sleep(delay);
                 delay *= 2;
+                delay = std::cmp::min(Duration::from_millis(10000), delay);
             },
         }
     }
