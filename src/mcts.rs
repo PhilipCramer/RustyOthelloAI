@@ -22,9 +22,9 @@ impl Node {
         }
     }
 
-    pub fn update_node(&mut self, win: bool)  {
+    pub fn update_node(&mut self, result: (char, bool))  {
         self.visits += 1;
-        if win {
+        if result.0 == self.state.next_turn && result.1 {
             self.wins += 1;
         }
     }
@@ -132,16 +132,16 @@ impl MCTS {
         }
         node_index
     }
-    fn simulate(&mut self, node_index: usize) -> bool {
+    fn simulate(&mut self, node_index: usize) -> (char, bool) {
         if let Some(node) = self.nodes.get_mut(node_index) {
             let mut node_state = node.state.clone();
             let win = simulate_game(&mut node_state);
-            node.update_node(win);
-            return win;
+            node.update_node((node.state.next_turn, win));
+            return (node_state.next_turn, win);
         }
-        false
+        ('_', false)
     }
-    fn backpropagate(&mut self, child_index: usize, result: bool) {
+    fn backpropagate(&mut self, child_index: usize, result: (char, bool)) {
         let mut current_node: &mut Node;
         let mut parent_index: Option<usize>  = self.parents.get(child_index).unwrap().clone(); 
         while parent_index.is_some() {
