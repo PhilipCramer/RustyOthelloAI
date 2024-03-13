@@ -1,5 +1,5 @@
 use ureq::Response;
-use std::thread::sleep;
+use std::{sync::WaitTimeoutResult, thread::sleep};
 use std::time::Duration;
 mod mcts;
 mod othello;
@@ -8,27 +8,66 @@ use othello::{State, Action, parse_state, print_state};
 
 
 
-const SERVER_URL: &str = "http://127.0.0.1:8181";
+const SERVER_URL: &str = "http://localhost:8181";
 
 fn main() {
     let state = State::new();
     let mut mcts = MCTS::new(Node::new(state, None, state.get_actions()));
     loop {
-        let current_state = get_game_state();
-        let choice = mcts.search(current_state, 10000);
-        if choice.is_ok() {
-            let _ = send_move(Some(choice.unwrap()));
+        match is_my_turn() {
+            Ok(true) =>  {
+                let current_state = get_game_state();
+                let choice = mcts.search(current_state, 10000);
+
+                if choice.is_ok() {
+                    let _ = send_move(Some(choice.unwrap()));
+                }
+                else {
+                    let _ = send_move(None);
+                    
+                }
+
+            },
+            Ok(false) => {
+                sleep(Duration::from_secs(1));
+                continue;
+            },
+            Err(e) => {
+                eprintln!("Error checking turn: {}", e);
+                sleep(Duration::from_secs(1));
+                continue;
+            }
         }
-        else {
-            let _ = send_move(None);
         }
     }
 
-
+fn is_my_turn() -> Result<bool, Box<dyn std::error::Error>> {
+    let mut delay = Duration::from_secs(1);
+    loop {
+        let url = format!("{}/turn", SERVER_URL);
+        match ureq::get(&url).call() {
+            Ok(response) => {
+                let body = response.into_string()?;
+                match body.trim() {
+                    "true" => return Ok(true),
+                    "false" => {
+                        // It's not our turn yet, wait before trying again
+                        println!("Not my turn. Waiting...");
+                        sleep(delay);
+                        delay = std::cmp::min(delay.saturating_mul(2), Duration::from_secs(3));
+                    },
+                    _ => return Err("Unexpected response from server".into()),
+                }
+            },
+            Err(e) => {
+                // Error occurred, possibly a network issue or server error, wait before trying again
+                eprintln!("Error checking turn: {}, will retry after {:?} seconds", e, delay);
+                sleep(delay);
+                delay = std::cmp::min(delay.saturating_mul(2), Duration::from_secs(10));
+            }
+        }
+    }
 }
-
-
-
 
 fn get_game_state() -> State {
     let mut delay = Duration::from_secs(3);
@@ -57,7 +96,7 @@ fn send_move(ai_move: Option<Action>) -> Result<Response, ureq::Error> {
     let url;
     if ai_move.is_some() {
         let ai_choice = ai_move.unwrap();
-        url =  format!("{}/{}/{}/{}",base_url, "setChoice", ai_choice.x, ai_choice.y);
+        url =  format!("{}/{}/{}/{}/{}",base_url, "setChoice", ai_choice.x, ai_choice.y, true);
     }
     else {
         url = format!("{}/{}", base_url, "skipTurn");
