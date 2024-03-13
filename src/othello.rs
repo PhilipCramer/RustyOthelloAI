@@ -178,8 +178,7 @@ pub fn parse_state(json: serde_json::Value) -> State {
         for (x, row) in board.iter().enumerate() {
             if let Some(row) = row.as_array() {
                 for (y, cell) in row.iter().enumerate() {
-                    let num = cell.as_i64();
-                    match  num {
+                    match  cell.as_i64() {
                         Some(1) => new_board[x][y] = 'W',
                         Some(0) => new_board[x][y] = 'B',
                         Some(-1) => {
