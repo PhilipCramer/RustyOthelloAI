@@ -66,7 +66,7 @@ impl State {
                 new_state.flip_pieces(act.clone(), dir.0, dir.1);
             }
         }
-        return new_state.to_owned();
+        return new_state;
     }
 
     fn flip_pieces(&mut self, action: Action, x1: isize, y1: isize) -> bool {
@@ -168,14 +168,22 @@ pub fn parse_state(json: serde_json::Value) -> State {
 
     };
     if let Some(board) = json["board"].as_array() {
+        /*if board.len() > 8 {
+            println!("{:?}", new_board);
+            panic!("Board has too many rows");
+        }*/
         for (x, row) in board.iter().enumerate() {
             if let Some(row) = row.as_array() {
+                /*if row.len() > 8 {
+                    println!("{:?}", new_board);
+                    panic!("Board has too many cloumns");
+                }*/
                 for (y, cell) in row.iter().enumerate() {
-                    let num = cell.as_i64();
-                    match  num {
+                    match  cell.as_i64() {
                         Some(1) => new_board[x][y] = 'W',
                         Some(0) => new_board[x][y] = 'B',
-                        _ => new_board[x][y] = '_',
+                        Some(-1) => new_board[x][y] = '_',
+                        _ => {},
                     }
                 }
             }
