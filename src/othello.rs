@@ -32,7 +32,7 @@ impl State {
                 tmp_action.x = x;
                 tmp_action.y = y;
                 if *ch == '_' {
-                    for dir in vec![(0,1), (1,0), (1,1), (0,-1), (-1,0), (-1,-1)].iter() {
+                    for dir in vec![(0,1), (1,0), (1,1), (0,-1), (-1,0), (-1,-1)] {
                         let mut tmp_state = self.clone();
                         if tmp_state.flip_pieces(tmp_action.clone(), dir.0, dir.1){
                             actions.push(tmp_action.clone());
@@ -62,7 +62,7 @@ impl State {
         if action.is_some() {
             let act = action.unwrap();
             new_state.board[act.x][act.y] = act.color.clone();
-            for dir in vec![(0,1), (1,0), (1,1), (0,-1), (-1,0), (-1,-1)].iter() {
+            for dir in vec![(0,1), (1,0), (1,1), (0,-1), (-1,0), (-1,-1)] {
                 new_state.flip_pieces(act.clone(), dir.0, dir.1);
             }
         }
