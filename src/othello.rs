@@ -32,7 +32,7 @@ impl State {
                 tmp_action.x = x;
                 tmp_action.y = y;
                 if *ch == '_' {
-                    for dir in vec![(0,1), (1,0), (1,1), (0,-1), (-1,0), (-1,-1)].iter() {
+                    for dir in vec![(0,1), (1,0), (1,1), (0,-1), (-1,0), (-1,-1)] {
                         let mut tmp_state = self.clone();
                         if tmp_state.flip_pieces(tmp_action.clone(), dir.0, dir.1){
                             actions.push(tmp_action.clone());
@@ -62,7 +62,7 @@ impl State {
         if action.is_some() {
             let act = action.unwrap();
             new_state.board[act.x][act.y] = act.color.clone();
-            for dir in vec![(0,1), (1,0), (1,1), (0,-1), (-1,0), (-1,-1)].iter() {
+            for dir in vec![(0,1), (1,0), (1,1), (0,-1), (-1,0), (-1,-1)] {
                 new_state.flip_pieces(act.clone(), dir.0, dir.1);
             }
         }
@@ -159,6 +159,7 @@ fn caculate_win(player: char, state: State) -> bool {
     }
     p1_score > p2_score
 }
+
 pub fn parse_state(json: serde_json::Value) -> State {
     let mut new_board = [['E';BOARD_SIZE]; BOARD_SIZE];
     let next = match json["turn"] {
@@ -170,10 +171,10 @@ pub fn parse_state(json: serde_json::Value) -> State {
         for (x, row) in board.iter().enumerate() {
             if let Some(row) = row.as_array() {
                 for (y, cell) in row.iter().enumerate() {
-                    let num = cell.as_u64().unwrap() as isize;
+                    let num = cell.as_i64();
                     match  num {
-                        1 => new_board[x][y] = 'W',
-                        0 => new_board[x][y] = 'B',
+                        Some(1) => new_board[x][y] = 'W',
+                        Some(0) => new_board[x][y] = 'B',
                         _ => new_board[x][y] = '_',
                     }
                 }
