@@ -175,16 +175,8 @@ pub fn parse_state(json: serde_json::Value) -> State {
 
     };
     if let Some(board) = json["board"].as_array() {
-        /*if board.len() > 8 {
-            println!("{:?}", new_board);
-            panic!("Board has too many rows");
-        }*/
         for (x, row) in board.iter().enumerate() {
             if let Some(row) = row.as_array() {
-                /*if row.len() > 8 {
-                    println!("{:?}", new_board);
-                    panic!("Board has too many cloumns");
-                }*/
                 for (y, cell) in row.iter().enumerate() {
                     let num = cell.as_i64();
                     match  num {
