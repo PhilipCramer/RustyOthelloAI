@@ -159,6 +159,7 @@ fn caculate_win(player: char, state: State) -> bool {
     }
     p1_score > p2_score
 }
+
 pub fn parse_state(json: serde_json::Value) -> State {
     let mut new_board = [['E';BOARD_SIZE]; BOARD_SIZE];
     let next = match json["turn"] {
