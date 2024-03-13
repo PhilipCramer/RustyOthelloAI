@@ -179,8 +179,7 @@ pub fn parse_state(json: serde_json::Value) -> State {
                     panic!("Board has too many cloumns");
                 }*/
                 for (y, cell) in row.iter().enumerate() {
-                    let num = cell.as_i64();
-                    match  num {
+                    match  cell.as_i64() {
                         Some(1) => new_board[x][y] = 'W',
                         Some(0) => new_board[x][y] = 'B',
                         Some(-1) => new_board[x][y] = '_',
