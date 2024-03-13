@@ -1,31 +1,34 @@
 use ureq::Response;
-use std::{sync::WaitTimeoutResult, thread::sleep};
+use std::thread::sleep;
 use std::time::Duration;
 mod mcts;
 mod othello;
 use mcts::{MCTS, Node};
-use othello::{State, Action, parse_state, print_state};
+use othello::{State, Action, parse_state};
 
 
 
 const SERVER_URL: &str = "http://localhost:8181";
 
 fn main() {
-    let state = State::new();
+    let mut state = State::new();
     let mut mcts = MCTS::new(Node::new(state, None, state.get_actions()));
+    let mut choice: Result<Action, ()>;
     loop {
         match is_my_turn() {
             Ok(true) =>  {
-                let current_state = get_game_state();
-                let choice = mcts.search(current_state, 10000);
+                state = get_game_state();
+                choice = mcts.search(state, 10000);
 
                 if choice.is_ok() {
-                    let _ = send_move(Some(choice.unwrap()));
+                    let _ = send_move(Some(choice.clone().unwrap()));
+                    state.do_action(Some(choice.unwrap()));
                 }
                 else {
                     let _ = send_move(None);
-                    
+                    state.do_action(None); 
                 }
+                _ = mcts.search(state, 20000);
 
             },
             Ok(false) => {
@@ -38,8 +41,8 @@ fn main() {
                 continue;
             }
         }
-        }
     }
+}
 
 fn is_my_turn() -> Result<bool, Box<dyn std::error::Error>> {
     let mut delay = Duration::from_secs(1);
@@ -71,8 +74,7 @@ fn is_my_turn() -> Result<bool, Box<dyn std::error::Error>> {
 
 fn get_game_state() -> State {
     let mut delay = Duration::from_secs(3);
-     loop {
-
+    loop {
         match get_json() {
             Ok(resp) => return parse_state(resp.into_json().expect("Error parsing response to json")),
             Err(_e) => {
