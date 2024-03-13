@@ -22,9 +22,9 @@ impl Node {
         }
     }
 
-    pub fn update_node(&mut self, win: bool)  {
+    pub fn update_node(&mut self, result: (char, bool))  {
         self.visits += 1;
-        if win {
+        if result.0 == self.state.next_turn && result.1 {
             self.wins += 1;
         }
     }
@@ -58,17 +58,12 @@ impl MCTS {
     pub fn search(&mut self, from: State, iterations: u64) -> Result<Action, ()> {
         if let Some(root) = self.state_map.get(&from).cloned() {
             for _i in 0..iterations {
-                //println!("Iteration: {i} of {iterations}");
                 let node_index = self.select(root.clone()).clone();
-                //println!("Expanding {node_index}");
                 let node_index = self.expand(node_index.clone()).clone();
                 for index in self.tree.get(node_index).expect("No child nodes to simulate").clone().iter() {
-                    //println!("Simulating {index}");
                     let result = &self.simulate(*index);
                     self.backpropagate(*index, result.clone());
-                    //println!("Propagated {} \tTree size: {}", index, self.size);
                 }
-                //println!("Tree size: {}", self.size);
 
             }
             Ok(self.get_best_choice(root)?)
@@ -132,16 +127,16 @@ impl MCTS {
         }
         node_index
     }
-    fn simulate(&mut self, node_index: usize) -> bool {
+    fn simulate(&mut self, node_index: usize) -> (char, bool) {
         if let Some(node) = self.nodes.get_mut(node_index) {
             let mut node_state = node.state.clone();
             let win = simulate_game(&mut node_state);
-            node.update_node(win);
-            return win;
+            node.update_node((node.state.next_turn, win));
+            return (node_state.next_turn, win);
         }
-        false
+        ('_', false)
     }
-    fn backpropagate(&mut self, child_index: usize, result: bool) {
+    fn backpropagate(&mut self, child_index: usize, result: (char, bool)) {
         let mut current_node: &mut Node;
         let mut parent_index: Option<usize>  = self.parents.get(child_index).unwrap().clone(); 
         while parent_index.is_some() {
@@ -162,7 +157,6 @@ impl MCTS {
                 max_visits = node.visits;
             }
         }
-        //println!("Best index: {best_index} with {max_visits} visits");
         let best_node = self.nodes.get(best_index).unwrap().clone();
         if best_node.action.is_none() {
             return Err(());
