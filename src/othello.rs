@@ -9,13 +9,15 @@ const BOARD_SIZE: usize = 8;
 pub struct State {
     pub board: [[char; BOARD_SIZE]; BOARD_SIZE],
     pub next_turn: char,
+    pub remaining_moves: isize,
 }
 impl State {
     pub fn new() -> Self{
         let mut new = Self {
             board: [
-                ['_'; 8]; 8],
-            next_turn: 'B'
+                ['_'; BOARD_SIZE]; BOARD_SIZE],
+            next_turn: 'B',
+            remaining_moves: 60,
         };
         new.board[3][3] = 'W';
         new.board[3][4] = 'B';
@@ -57,6 +59,7 @@ impl State {
         let mut new_state = State {
             next_turn: next_turn.clone(),
             board: self.board.clone(),
+            remaining_moves: (self.remaining_moves.clone() - 1),
         };
 
         if action.is_some() {
@@ -78,9 +81,6 @@ impl State {
             'B' => 'W',
             _ => 'B',
         };
-        /*if x_index > BOARD_SIZE - 1 || y_index > BOARD_SIZE - 1 {
-            return false;
-        }*/
         loop{
             //Bounds Check
             if  x_index > BOARD_SIZE - 1  ||  y_index > BOARD_SIZE - 1 {
@@ -130,11 +130,17 @@ impl Action {
 pub fn simulate_game(state: &mut State) -> bool {
     let mut test_state = state.clone();
     let mut test_actions = test_state.get_actions();
-    while test_actions.len() > 0 {
-        let mut rng = rand::thread_rng();
-        let index = rng.gen_range(0..test_actions.len());
-        let do_act = test_actions[index].clone();
-        test_state = test_state.do_action(Some(do_act));
+    let mut do_act: Option<Action>;
+    while test_state.remaining_moves > 0 {
+        if test_actions.len() < 1 {
+            do_act = None;
+        }
+        else {
+            let mut rng = rand::thread_rng();
+            let index = rng.gen_range(0..test_actions.len());
+            do_act = test_actions.get(index).cloned();
+        }
+        test_state = test_state.do_action(do_act);
         test_actions = test_state.get_actions();
     }
     caculate_win(state.next_turn, test_state)
@@ -162,6 +168,7 @@ fn caculate_win(player: char, state: State) -> bool {
 
 pub fn parse_state(json: serde_json::Value) -> State {
     let mut new_board = [['E';BOARD_SIZE]; BOARD_SIZE];
+    let mut moves_left: isize = 0;
     let next = match json["turn"] {
         serde_json::Value::Bool(true) => 'W',
         _ => 'B',
@@ -183,7 +190,10 @@ pub fn parse_state(json: serde_json::Value) -> State {
                     match  num {
                         Some(1) => new_board[x][y] = 'W',
                         Some(0) => new_board[x][y] = 'B',
-                        Some(-1) => new_board[x][y] = '_',
+                        Some(-1) => {
+                            new_board[x][y] = '_';
+                            moves_left += 1;
+                        },
                         _ => {},
                     }
                 }
@@ -193,6 +203,7 @@ pub fn parse_state(json: serde_json::Value) -> State {
     State{
         board: new_board,
         next_turn: next,
+        remaining_moves: moves_left,
     }
 }
 
