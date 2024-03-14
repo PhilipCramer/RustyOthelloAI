@@ -96,10 +96,10 @@ fn send_move(ai_move: Option<Action>) -> Result<Response, ureq::Error> {
     let url;
     if ai_move.is_some() {
         let ai_choice = ai_move.unwrap();
-        url =  format!("{}/{}/{}/{}/{}",base_url, "setChoice", ai_choice.x, ai_choice.y, true);
+        url =  format!("{}/{}/{}/{}/{}",base_url, "setChoice", ai_choice.x, ai_choice.y, false);
     }
     else {
-        url = format!("{}/{}", base_url, "skipTurn");
+        url = format!("{}/{}/{}", base_url, "skipTurn", !false);
     }
     resp = ureq::get(&url).call()?;
     Ok(resp)
