@@ -28,6 +28,7 @@ impl Node {
             self.wins += 1;
         }
     }
+    // Calculates and returns the Upper Confidence Bound (UCB) for the Node
     fn calculate_ucb(&self, total_count: usize) -> f64 {
         (self.wins as f64 / self.visits as f64) + (2.0 * (total_count as f64).ln() / self.visits as f64).sqrt()
     }
@@ -55,6 +56,9 @@ impl MCTS {
             nodes: vec![node],
         }
     }
+
+    // Performs a Monte Carlo Tree Search from the given state for the given number of iterations
+    // It returns the best action found or an error if no action was found
     pub fn search(&mut self, from: State, iterations: u64) -> Result<Action, ()> {
         if let Some(root) = self.state_map.get(&from).cloned() {
             for _i in 0..iterations {
@@ -73,6 +77,8 @@ impl MCTS {
             return self.search(from, iterations)
         }
     }
+
+    // Adds a new node to the MCTS with the given state, action, and parent
     fn add_node(&mut self, state: State, action: Option<Action>, parent: Option<usize>){
         let new_node = Node::new(state, action, state.get_actions());
         self.state_map.insert(state, self.size);
@@ -81,6 +87,8 @@ impl MCTS {
         self.nodes.push(new_node.clone());
         self.size += 1;
     }
+
+    // Selects a node from the MCTS using the Upper Confidence Bound (UCB) formula
     fn select(&self, root_index: usize) -> usize {
         let mut max_ucb = 0.0;
         let mut max_index = 0 as usize;
@@ -104,6 +112,8 @@ impl MCTS {
             max_index = 0;
         }
     }
+
+    // Expands the given node in the MCTS by adding all its untried actions as new nodes
     fn expand(&mut self, node_index: usize) -> usize {
         let mut node = self.nodes.get_mut(node_index).expect("No node to expand").clone();
         if node.untried_actions.len() == 0 {
@@ -127,6 +137,8 @@ impl MCTS {
         }
         node_index
     }
+
+    // Simulates a game from the given node and returns the result
     fn simulate(&mut self, node_index: usize) -> (char, bool) {
         if let Some(node) = self.nodes.get_mut(node_index) {
             let mut node_state = node.state.clone();
@@ -136,6 +148,8 @@ impl MCTS {
         }
         ('_', false)
     }
+
+    // Updates the nodes in the MCTS from the given child node to the root based on the result of a simulated game
     fn backpropagate(&mut self, child_index: usize, result: (char, bool)) {
         let mut current_node: &mut Node;
         let mut parent_index: Option<usize>  = self.parents.get(child_index).unwrap().clone(); 
@@ -147,6 +161,8 @@ impl MCTS {
         }
     }
 
+    // Selects the best action from the given node in the MCTS based on the number of visits
+    // It returns the best action found or an error if no action was found
     fn get_best_choice(&self, from_index: usize) -> Result<Action, ()> {
         let mut best_index = 0;
         let mut max_visits = 0;
