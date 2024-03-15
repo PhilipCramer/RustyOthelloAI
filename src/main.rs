@@ -52,7 +52,6 @@ fn main() {
                     let _ = send_move(&ai_color, None);
                     state.do_action(None); 
                 }
-                _ = mcts.search(state, 20000);
 
             },
             // If it's not the AI's turn, it performs a search using MCTS and waits
@@ -76,7 +75,7 @@ fn is_my_turn(ai: &String) -> Result<bool, Box<dyn std::error::Error>> {
         _ => "true"
     };
     loop {
-        let url = format!("{}/turn/{}", SERVER_URL, ai);
+        let url = format!("{}/turn", SERVER_URL);
         match ureq::get(&url).call() {
             Ok(response) => {
                 let body = response.into_string()?;
