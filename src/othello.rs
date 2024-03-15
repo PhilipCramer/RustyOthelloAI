@@ -199,8 +199,13 @@ pub fn parse_state(json: serde_json::Value) -> State {
 }
 
 pub fn print_state(state: State) {
-    for i in state.board {
-        println!("{:?}", i);
+    println!("   0 1 2 3 4 5 6 7");
+    for (i, row) in state.board.iter().enumerate() {
+        print!("{i} ");
+        for ch in row {
+            print!("|{}", ch);
+        }
+        print!("|\n");
     }
-    println!("next: {}", state.next_turn)
+    println!("Next: {}", state.next_turn)
 }
