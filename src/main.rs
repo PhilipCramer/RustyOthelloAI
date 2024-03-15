@@ -52,7 +52,6 @@ fn main() {
                     let _ = send_move(&ai_color, None);
                     state.do_action(None); 
                 }
-                _ = mcts.search(state, 20000);
 
             },
             // If it's not the AI's turn, it performs a search using MCTS and waits
