@@ -58,7 +58,8 @@ fn main() {
             },
             // If it's not the AI's turn, it performs a search using MCTS and waits
             Ok(false) => {
-                _ = mcts.search(state, 20000, send_progress);
+                let dev_null = |_a: usize, _b: usize| -> (){};
+                _ = mcts.search(state, 1000, dev_null);
                 //sleep(Duration::from_secs(1));
             },
             Err(e) => {
