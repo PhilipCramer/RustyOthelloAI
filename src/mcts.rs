@@ -1,3 +1,4 @@
+
 use crate::othello::{State, Action, simulate_game};
 use std::collections::HashMap;
 
@@ -59,9 +60,12 @@ impl MCTS {
 
     // Performs a Monte Carlo Tree Search from the given state for the given number of iterations
     // It returns the best action found or an error if no action was found
-    pub fn search(&mut self, from: State, iterations: u64) -> Result<Action, ()> {
+    pub fn search(&mut self, from: State, iterations: usize, send_status: fn(usize, usize)) -> Result<Action, ()> {
         if let Some(root) = self.state_map.get(&from).cloned() {
-            for _i in 0..iterations {
+            for i in 0..iterations {
+                if i % 1000 == 0 {
+                    _ = send_status(i, iterations);
+                }
                 let node_index = self.select(root.clone()).clone();
                 let node_index = self.expand(node_index.clone()).clone();
                 for index in self.tree.get(node_index).expect("No child nodes to simulate").clone().iter() {
@@ -74,7 +78,7 @@ impl MCTS {
         }
         else {
             self.add_node(from.clone(), None, None);
-            return self.search(from, iterations)
+            return self.search(from, iterations, send_status)
         }
     }
 

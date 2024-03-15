@@ -1,4 +1,6 @@
 use ureq::Response;
+use std::thread::current;
+use std::usize;
 use std::{thread::sleep, borrow::Borrow};
 use std::time::Duration;
 mod mcts;
@@ -40,7 +42,7 @@ fn main() {
         match is_my_turn(ai_color.borrow()) {
             Ok(true) =>  {
                 state = get_game_state();
-                choice = mcts.search(state, 10000);
+                choice = mcts.search(state, 10000, send_progress);
 
                 // If a valid action is found, it sends the move to the server and updates the game state
                 if choice.is_ok() {
@@ -56,7 +58,7 @@ fn main() {
             },
             // If it's not the AI's turn, it performs a search using MCTS and waits
             Ok(false) => {
-                _ = mcts.search(state, 20000);
+                _ = mcts.search(state, 20000, send_progress);
                 //sleep(Duration::from_secs(1));
             },
             Err(e) => {
@@ -140,4 +142,9 @@ fn send_move(player: &String, ai_move: Option<Action>) -> Result<Response, ureq:
     }
     resp = ureq::get(&url).call()?;
     Ok(resp)
+}
+fn send_progress(current: usize, total: usize)  {
+    let url = format!("{}/AIStatus/{}/{}", SERVER_URL, current, total);
+    let resp = ureq::get(&url).call();
+
 }
