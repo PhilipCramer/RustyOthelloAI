@@ -76,7 +76,7 @@ fn is_my_turn(ai: &String) -> Result<bool, Box<dyn std::error::Error>> {
         _ => "true"
     };
     loop {
-        let url = format!("{}/turn/{}", SERVER_URL, ai);
+        let url = format!("{}/turn", SERVER_URL);
         match ureq::get(&url).call() {
             Ok(response) => {
                 let body = response.into_string()?;
