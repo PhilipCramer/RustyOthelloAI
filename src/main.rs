@@ -1,5 +1,5 @@
 use ureq::Response;
-use std::thread::sleep;
+use std::{thread::sleep, borrow::Borrow};
 use std::time::Duration;
 mod mcts;
 mod othello;
@@ -17,14 +17,14 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     let ai_color;
     match args.get(1).expect("Please specify color to the AI").to_lowercase() {
-        x if x == "false" => ai_color = 'B',
-        x if x == "0" => ai_color = 'B',
-        x if x == "b" => ai_color = 'B',
-        x if x == "black" => ai_color = 'B',
-        x if x == "true" => ai_color = 'W',
-        x if x == "1" => ai_color = 'W',
-        x if x == "w" => ai_color = 'W',
-        x if x == "white" => ai_color = 'W',
+        x if x == "false" => ai_color = x,
+        x if x == "0" => ai_color = "false".to_string(),
+        x if x == "b" => ai_color = "false".to_string(),
+        x if x == "black" => ai_color = "false".to_string(),
+        x if x == "true" => ai_color = x,
+        x if x == "1" => ai_color = "true".to_string(),
+        x if x == "w" => ai_color = "true".to_string(),
+        x if x == "white" => ai_color = "true".to_string(),
         _ => panic!("Please pass a proper argument to the AI"),
 
     }
@@ -37,19 +37,19 @@ fn main() {
     // The main game loop
     loop {
         // The AI checks if it's its turn, if so, it gets the current game state and performs a search using MCTS
-        match is_my_turn(ai_color) {
+        match is_my_turn(ai_color.borrow()) {
             Ok(true) =>  {
                 state = get_game_state();
                 choice = mcts.search(state, 10000);
 
                 // If a valid action is found, it sends the move to the server and updates the game state
                 if choice.is_ok() {
-                    let _ = send_move(ai_color, Some(choice.clone().unwrap()));
+                    let _ = send_move(&ai_color, Some(choice.clone().unwrap()));
                     state.do_action(Some(choice.unwrap()));
                 }
                 // If no valid action is found, it sends a pass move to the server and updates the game state
                 else {
-                    let _ = send_move(ai_color, None);
+                    let _ = send_move(&ai_color, None);
                     state.do_action(None); 
                 }
                 _ = mcts.search(state, 20000);
@@ -69,22 +69,22 @@ fn main() {
 }
 // Function to check if it's the AI's turn
 // This function makes a GET request to the server and parses the response
-fn is_my_turn(player: char) -> Result<bool, Box<dyn std::error::Error>> {
+fn is_my_turn(ai: &String) -> Result<bool, Box<dyn std::error::Error>> {
     let mut delay = Duration::from_secs(1);
-    let color = match player {
-        'W' => "true",
-        _ => "false"
+    let opponent = match ai {
+        x if x == "true" => "false",
+        _ => "true"
     };
     loop {
-        let url = format!("{}/turn/{}", SERVER_URL, color);
+        let url = format!("{}/turn/{}", SERVER_URL, ai);
         match ureq::get(&url).call() {
             Ok(response) => {
                 let body = response.into_string()?;
                 match body.trim() {
                     // If the response is "true", it's the AI's turn and the function returns Ok(true)
-                    x if x == "true" => return Ok(true),
+                    x if x == ai => return Ok(true),
                     // If the response is "false", it's not the AI's turn and the function returns Ok(false)
-                    x if x == "false" => return Ok(false),
+                    x if x == opponent => return Ok(false),
                     // If the response is anything else, the function returns an error
                     _ => return Err("Unexpected response from server".into()),
                 }
@@ -125,13 +125,9 @@ fn get_json() -> Result<Response, ureq::Error> {
 }
 
 // Function to send the AI's move to the server
-fn send_move(color: char, ai_move: Option<Action>) -> Result<Response, ureq::Error> {
+fn send_move(player: &String, ai_move: Option<Action>) -> Result<Response, ureq::Error> {
     let resp;
     let url;
-    let player = match color {
-        'W' => "true",
-        _ => "false",
-    };
     // If the AI has a move, format the URL for the setChoice endpoint
     // The setChoice endpoint requires the x and y coordinates of the move and the player
     if ai_move.is_some() {
