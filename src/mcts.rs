@@ -9,7 +9,7 @@ pub struct Node {
     action: Option<Action>,
     untried_actions: Vec<Action>,
     visits: usize,
-    wins: usize,
+    wins: isize,
 }
 
 impl Node {
@@ -23,10 +23,12 @@ impl Node {
         }
     }
 
-    pub fn update_node(&mut self, result: (char, bool))  {
+    pub fn update_node(&mut self, result: (char, isize))  {
         self.visits += 1;
-        if result.0 == self.state.next_turn && result.1 {
-            self.wins += 1;
+        if result.0 == self.state.next_turn {
+            self.wins += result.1;
+        } else {
+            self.wins -= result.1
         }
     }
     // Calculates and returns the Upper Confidence Bound (UCB) for the Node
@@ -39,6 +41,7 @@ impl Node {
 #[derive()]
 pub struct MCTS {
     pub size: usize,
+    color: char,
     nodes: Vec<Node>,
     tree: Vec<Vec<usize>>,
     parents: Vec<Option<usize>>,
@@ -46,11 +49,16 @@ pub struct MCTS {
 }
 
 impl MCTS {
-    pub fn new(node: Node) -> Self {
+    pub fn new(col: &str, node: Node) -> Self {
+        let ai_color = match col {
+            b if b == "false" => 'B',
+            _ => 'W',
+        };
         let mut map = HashMap::new();
         map.insert(node.state, 0 as usize);
         Self {
             tree: vec![Vec::new()],
+            color: ai_color,
             parents: vec![None],
             state_map: map.to_owned(),
             size: 1,
@@ -143,18 +151,21 @@ impl MCTS {
     }
 
     // Simulates a game from the given node and returns the result
-    fn simulate(&mut self, node_index: usize) -> (char, bool) {
+    fn simulate(&mut self, node_index: usize) -> (char, isize) {
         if let Some(node) = self.nodes.get_mut(node_index) {
             let mut node_state = node.state.clone();
-            let win = simulate_game(&mut node_state);
+            let mut win = simulate_game(&mut node_state);
+            if self.color != node_state.next_turn {
+                win *= -1;
+            }
             node.update_node((node.state.next_turn, win));
             return (node_state.next_turn, win);
         }
-        ('_', false)
+        ('_', 0)
     }
 
     // Updates the nodes in the MCTS from the given child node to the root based on the result of a simulated game
-    fn backpropagate(&mut self, child_index: usize, result: (char, bool)) {
+    fn backpropagate(&mut self, child_index: usize, result: (char, isize)) {
         let mut current_node: &mut Node;
         let mut parent_index: Option<usize>  = self.parents.get(child_index).unwrap().clone(); 
         while parent_index.is_some() {

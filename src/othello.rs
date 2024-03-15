@@ -127,7 +127,7 @@ impl Action {
 }
 
 
-pub fn simulate_game(state: &mut State) -> bool {
+pub fn simulate_game(state: &mut State) -> isize {
     let mut test_state = state.clone();
     let mut test_actions = test_state.get_actions();
     let mut do_act: Option<Action>;
@@ -146,14 +146,14 @@ pub fn simulate_game(state: &mut State) -> bool {
     caculate_win(state.next_turn, test_state)
 }
 
-fn caculate_win(player: char, state: State) -> bool {
+fn caculate_win(player: char, state: State) -> isize {
     let p1 = player;
     let p2 = match p1 {
         'W' => 'B',
         _ => 'W',
     };
-    let mut p1_score: usize = 0;
-    let mut p2_score: usize = 0;
+    let mut p1_score: isize = 0;
+    let mut p2_score: isize = 0;
     for row in state.board {
         for ch in row {
             if ch == p1 {
@@ -163,7 +163,7 @@ fn caculate_win(player: char, state: State) -> bool {
             }
         } 
     }
-    p1_score > p2_score
+    p1_score - p2_score
 }
 
 pub fn parse_state(json: serde_json::Value) -> State {
