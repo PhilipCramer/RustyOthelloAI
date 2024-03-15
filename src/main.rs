@@ -1,10 +1,11 @@
 use ureq::Response;
-use std::thread::current;
 use std::usize;
 use std::{thread::sleep, borrow::Borrow};
 use std::time::Duration;
 mod mcts;
 mod othello;
+mod console_game;
+use console_game::console_game;
 use mcts::{MCTS, Node};
 use othello::{State, Action, parse_state};
 
@@ -27,6 +28,10 @@ fn main() {
         x if x == "1" => ai_color = "true".to_string(),
         x if x == "w" => ai_color = "true".to_string(),
         x if x == "white" => ai_color = "true".to_string(),
+        x if x == "console" => {
+            console_game();
+            return;
+        },
         _ => panic!("Please pass a proper argument to the AI"),
 
     }
