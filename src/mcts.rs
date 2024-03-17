@@ -32,8 +32,8 @@ impl Node {
         }
     }
     // Calculates and returns the Upper Confidence Bound (UCB) for the Node
-    fn calculate_ucb(&self, total_count: usize) -> f64 {
-        (self.score as f64 / self.visits as f64) + (2.0 * (total_count as f64).ln() / self.visits as f64).sqrt()
+    fn calculate_ucb(&self, total_count: usize, explore: f64) -> f64 {
+        (self.score as f64 / self.visits as f64) + explore * (2.0 * (total_count as f64).ln() / self.visits as f64).sqrt()
     }
 
 }
@@ -42,6 +42,7 @@ impl Node {
 pub struct MCTS {
     pub size: usize,
     color: char,
+    expl: f64,
     nodes: Vec<Node>,
     tree: Vec<Vec<usize>>,
     parents: Vec<Option<usize>>,
@@ -49,21 +50,22 @@ pub struct MCTS {
 }
 
 impl MCTS {
-    pub fn new(col: &str, node: Node) -> Self {
+    pub fn new(col: &str, explore: f64) -> Self {
         let ai_color: char;
         match col {
             b if b == "false".to_string() => ai_color = 'B',
             _ => ai_color = 'W',
         };
-        let mut map = HashMap::new();
-        map.insert(node.state, 0 as usize);
+        //let mut map = HashMap::new();
+        //map.insert(node.state, 0 as usize);
         Self {
-            tree: vec![Vec::new()],
+            tree: Vec::new(),
             color: ai_color,
-            parents: vec![None],
-            state_map: map.to_owned(),
-            size: 1,
-            nodes: vec![node],
+            expl: explore.clone(),
+            parents: Vec::new(),
+            state_map: HashMap::new(),
+            size: 0,
+            nodes: Vec::new(),
         }
     }
 
@@ -114,7 +116,7 @@ impl MCTS {
             else {
                 for index in self.tree.get(node_index).unwrap().iter() {
                     let node = self.nodes.get(*index).expect("selected child doesnt exist").clone();
-                    let node_ucb = node.calculate_ucb(self.nodes.get(root_index).unwrap().visits as usize);
+                    let node_ucb = node.calculate_ucb(self.nodes.get(root_index).unwrap().visits as usize, self.expl);
                     if node_ucb > max_ucb {
                         max_ucb = node_ucb;
                         max_index = index.clone();
