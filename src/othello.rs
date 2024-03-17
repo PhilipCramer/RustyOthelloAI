@@ -163,7 +163,11 @@ fn caculate_win(player: char, state: State) -> isize {
             }
         } 
     }
-    p1_score - p2_score
+    match p1_score - p2_score {
+        x if x > 0 => 1,
+        x if x < 0 => -1,
+        _ => 0,
+    }
 }
 
 pub fn parse_state(json: serde_json::Value) -> State {
