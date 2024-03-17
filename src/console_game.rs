@@ -1,30 +1,37 @@
 use std::io::Write;
+use std::isize;
 
-use crate::mcts::{MCTS, Node};
-use crate::othello::{State, Action, print_state};
+use crate::mcts::MCTS;
+use crate::othello::{State, Action};
 
 pub fn console_game(){
-    let mut state = State::new();
-    let mut mcts = MCTS::new("false",Node::new(state, None, state.get_actions()));
-    let mut mcts2 = MCTS::new("true",Node::new(state, None, state.get_actions()));
-    println!("Playing AI vs AI\n");
-    loop {
-        state = ai_turn(&mut mcts, state.clone(), 100);
-        if state.remaining_moves < 0 {
-            break;
-        }
-        state = ai_turn(&mut mcts2, state.clone(), 1000);
+    let mut win_balance: isize = 0;
+    println!("Playing AI e1.0 vs AI e2.0 \n");
+    for i in 1..11 {
+        print!("{i}... ");
+        let mut state = State::new();
+        let mut mcts = MCTS::new("false",1.0);
+        let mut mcts2 = MCTS::new("true",2.0);
+        _ = std::io::stdout().flush();
+        loop {
+            state = ai_turn(&mut mcts, state.clone(), 500);
+            if state.remaining_moves < 0 {
+                break;
+            }
+            state = ai_turn(&mut mcts2, state.clone(), 500);
 
-        if state.remaining_moves < 0 {
-            break;
+            if state.remaining_moves < 0 {
+                break;
+            }
         }
+        //print_state(state);
+        win_balance += determine_winner(state);
+        //println!("\nGAME OVER\n");
     }
-    //print_state(state);
-    determine_winner(state);
-    println!("\nGAME OVER\n");
+    println!("\nResult: {win_balance}")
 }
 
-fn determine_winner(state: State) {
+fn determine_winner(state: State) -> isize {
     let p1 = 'B';
     let p2 = 'W';
     let mut p1_score: isize = 0;
@@ -38,20 +45,25 @@ fn determine_winner(state: State) {
             }
         } 
     }
-    println!("Score is\t{} {} : {} {}", p1, p1_score, p2_score, p2);
+    match p1_score - p2_score {
+        x if x > 0 => 1,
+        x if x < 0 => -1,
+        _ => 0,
+    }
+    //println!("Score is\t{} {} : {} {}", p1, p1_score, p2_score, p2);
 
 }
 
 
 fn ai_turn(mcts: &mut MCTS, state: State, iterations: usize) -> State {
-        let dev_null = |_a: usize, _b: usize| -> (){};
-        let action = mcts.search(state.clone(), iterations, dev_null); 
-        if action.is_ok() {
-            state.clone().do_action(Some(action.unwrap().clone()))
-        } 
-        else {
-            state.clone().do_action(None)
-        }
+    let dev_null = |_a: usize, _b: usize| -> (){};
+    let action = mcts.search(state.clone(), iterations, dev_null); 
+    if action.is_ok() {
+        state.clone().do_action(Some(action.unwrap().clone()))
+    } 
+    else {
+        state.clone().do_action(None)
+    }
 }
 
 
@@ -59,41 +71,41 @@ fn ai_turn(mcts: &mut MCTS, state: State, iterations: usize) -> State {
 fn player_turn(state: State) -> State {
     let mut player_choice: Option<Action>;
     let mut buf = String::new();
-        loop {
-            print!("Enter coordinates for desired move: ");
-            let _ = std::io::stdout().flush();
-            let _ = std::io::stdin().read_line(&mut buf);
-            let cmd: Vec<&str> = buf.trim().split(",").clone().collect();
-            match (cmd.get(0), cmd.get(1)) {
-                (Some(cmd_1), Some(cmd_2)) => {
-                    match (cmd_1.parse::<usize>(), cmd_2.parse::<usize>()) {
-                        (Ok(y_index), Ok(x_index)) => {
-                            player_choice = Some(Action {
-                                color: 'B',
-                                x: x_index,
-                                y: y_index,
-                            });
-                            if state.get_actions().contains(&player_choice.clone().unwrap()) {
-                                break;
-                            }else {
-                                println!("Invalid move");
-                            }
-                        },
-                        _ => println!("Please provide only numbers for indexes"),
-                    }
-                },
-                (Some(skip), None) => {
-                    if skip.to_lowercase() == "skip".to_string() {
-                        player_choice = None;
-                        break;
-                    }
-                },
-                _ => println!("Please provide a move in the form of 1,2 or \"skip\""),
+    loop {
+        print!("Enter coordinates for desired move: ");
+        let _ = std::io::stdout().flush();
+        let _ = std::io::stdin().read_line(&mut buf);
+        let cmd: Vec<&str> = buf.trim().split(",").clone().collect();
+        match (cmd.get(0), cmd.get(1)) {
+            (Some(cmd_1), Some(cmd_2)) => {
+                match (cmd_1.parse::<usize>(), cmd_2.parse::<usize>()) {
+                    (Ok(y_index), Ok(x_index)) => {
+                        player_choice = Some(Action {
+                            color: 'B',
+                            x: x_index,
+                            y: y_index,
+                        });
+                        if state.get_actions().contains(&player_choice.clone().unwrap()) {
+                            break;
+                        }else {
+                            println!("Invalid move");
+                        }
+                    },
+                    _ => println!("Please provide only numbers for indexes"),
+                }
+            },
+            (Some(skip), None) => {
+                if skip.to_lowercase() == "skip".to_string() {
+                    player_choice = None;
+                    break;
+                }
+            },
+            _ => println!("Please provide a move in the form of 1,2 or \"skip\""),
 
-            }
-            buf.clear();
         }
         buf.clear();
-        state.clone().do_action(player_choice)
+    }
+    buf.clear();
+    state.clone().do_action(player_choice)
 
 } 
