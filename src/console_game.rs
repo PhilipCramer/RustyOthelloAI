@@ -2,38 +2,37 @@ use std::io::Write;
 use std::isize;
 
 use crate::mcts::MCTS;
-use crate::othello::{State, Action};
+use crate::othello::{State, Action, print_state};
 
 pub fn console_game(){
     let mut win_balance: isize = 0;
-    println!("Playing AI e1.0 vs AI e2.0 \n");
-    for i in 1..11 {
-        print!("{i}... ");
-        let mut state = State::new();
-        let mut mcts = MCTS::new("false",1.0);
-        let mut mcts2 = MCTS::new("true",2.0);
-        _ = std::io::stdout().flush();
-        loop {
-            state = ai_turn(&mut mcts, state.clone(), 500);
-            if state.remaining_moves < 0 {
-                break;
-            }
-            state = ai_turn(&mut mcts2, state.clone(), 500);
-
-            if state.remaining_moves < 0 {
-                break;
-            }
+    let a = 1.5;
+    println!("Game mode: player vs AI\n");
+    let mut state = State::new();
+    let mut mcts = MCTS::new("true", a);
+    _ = std::io::stdout().flush();
+    loop {
+        print_state(state);
+        state = player_turn(state.clone());
+        if state.remaining_moves < 0 {
+            break;
         }
-        //print_state(state);
-        win_balance += determine_winner(state);
-        //println!("\nGAME OVER\n");
+        print_state(state);
+        state = ai_turn(&mut mcts, state.clone(), 500);
+
+        if state.remaining_moves < 0 {
+            break;
+        }
     }
+    //print_state(state);
+    win_balance += determine_winner(state);
+    //println!("\nGAME OVER\n");
     println!("\nResult: {win_balance}")
 }
 
 fn determine_winner(state: State) -> isize {
-    let p1 = 'B';
-    let p2 = 'W';
+    let p1 = 'W';
+    let p2 = 'B';
     let mut p1_score: isize = 0;
     let mut p2_score: isize = 0;
     for row in state.board {
@@ -108,4 +107,5 @@ fn player_turn(state: State) -> State {
     buf.clear();
     state.clone().do_action(player_choice)
 
-} 
+}
+

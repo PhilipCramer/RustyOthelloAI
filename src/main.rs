@@ -7,7 +7,7 @@ mod mcts;
 mod othello;
 mod console_game;
 use console_game::console_game;
-use mcts::{MCTS, Node};
+use mcts::MCTS;
 use othello::{State, Action, parse_state};
 
 
