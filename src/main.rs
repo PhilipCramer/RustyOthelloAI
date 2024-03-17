@@ -1,4 +1,5 @@
 use ureq::Response;
+use std::process::exit;
 use std::usize;
 use std::{thread::sleep, borrow::Borrow};
 use std::time::Duration;
@@ -30,7 +31,7 @@ fn main() {
         x if x == "white" => ai_color = "true".to_string(),
         x if x == "console" => {
             console_game();
-            return;
+            exit(0);
         },
         _ => panic!("Please pass a proper argument to the AI"),
 
