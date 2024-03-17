@@ -33,7 +33,7 @@ fn main() {
     // Initialize the game state and the Monte Carlo Tree Search (MCTS)
     // The MCTS is initialized with a new node that represents the current game state
     let mut state = State::new();
-    let mut mcts = MCTS::new(Node::new(state, None, state.get_actions()));
+    let mut mcts = MCTS::new(&ai_color, 1.0);
     let mut choice: Result<Action, ()>;
 
     // The main game loop
@@ -146,6 +146,6 @@ fn send_move(player: &String, ai_move: Option<Action>) -> Result<Response, ureq:
 }
 fn send_progress(current: usize, total: usize)  {
     let url = format!("{}/AIStatus/{}/{}", SERVER_URL, current, total);
-    let resp = ureq::get(&url).call();
+    _ = ureq::get(&url).call();
 
 }
