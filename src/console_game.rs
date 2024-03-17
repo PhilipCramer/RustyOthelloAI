@@ -4,13 +4,61 @@ use crate::mcts::{MCTS, Node};
 use crate::othello::{State, Action, print_state};
 
 pub fn console_game(){
-    let dev_null = |_a: usize, _b: usize| -> (){};
     let mut state = State::new();
-    let mut mcts = MCTS::new(Node::new(state, None, state.get_actions()));
+    let mut mcts = MCTS::new("false",Node::new(state, None, state.get_actions()));
+    let mut mcts2 = MCTS::new("true",Node::new(state, None, state.get_actions()));
+    println!("Playing AI vs AI\n");
+    loop {
+        state = ai_turn(&mut mcts, state.clone(), 100);
+        if state.remaining_moves < 0 {
+            break;
+        }
+        state = ai_turn(&mut mcts2, state.clone(), 1000);
+
+        if state.remaining_moves < 0 {
+            break;
+        }
+    }
+    //print_state(state);
+    determine_winner(state);
+    println!("\nGAME OVER\n");
+}
+
+fn determine_winner(state: State) {
+    let p1 = 'B';
+    let p2 = 'W';
+    let mut p1_score: isize = 0;
+    let mut p2_score: isize = 0;
+    for row in state.board {
+        for ch in row {
+            if ch == p1 {
+                p1_score += 1;
+            }else if ch == p2 {
+                p2_score += 1;
+            }
+        } 
+    }
+    println!("Score is\t{} {} : {} {}", p1, p1_score, p2_score, p2);
+
+}
+
+
+fn ai_turn(mcts: &mut MCTS, state: State, iterations: usize) -> State {
+        let dev_null = |_a: usize, _b: usize| -> (){};
+        let action = mcts.search(state.clone(), iterations, dev_null); 
+        if action.is_ok() {
+            state.clone().do_action(Some(action.unwrap().clone()))
+        } 
+        else {
+            state.clone().do_action(None)
+        }
+}
+
+
+
+fn player_turn(state: State) -> State {
     let mut player_choice: Option<Action>;
-    print_state(state);
     let mut buf = String::new();
-    while state.remaining_moves > 0 {
         loop {
             print!("Enter coordinates for desired move: ");
             let _ = std::io::stdout().flush();
@@ -35,7 +83,7 @@ pub fn console_game(){
                     }
                 },
                 (Some(skip), None) => {
-                    if skip.to_lowercase() == "skip" {
+                    if skip.to_lowercase() == "skip".to_string() {
                         player_choice = None;
                         break;
                     }
@@ -46,13 +94,6 @@ pub fn console_game(){
             buf.clear();
         }
         buf.clear();
-        state = state.do_action(player_choice);
-        print_state(state);
-        if let Ok(action) = mcts.search(state, 10000, dev_null){
-            state = state.do_action(Some(action));
-        } else {
-            state = state.do_action(None);
-        }
-        print_state(state);
-    }
-}
+        state.clone().do_action(player_choice)
+
+} 
