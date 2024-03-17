@@ -16,13 +16,13 @@ impl State {
         let mut new = Self {
             board: [
                 ['_'; BOARD_SIZE]; BOARD_SIZE],
-            next_turn: 'B',
+            next_turn: 'W',
             remaining_moves: 60,
         };
-        new.board[3][3] = 'W';
-        new.board[3][4] = 'B';
-        new.board[4][4] = 'W';
-        new.board[4][3] = 'B';
+        new.board[3][3] = 'B';
+        new.board[3][4] = 'W';
+        new.board[4][4] = 'B';
+        new.board[4][3] = 'W';
         new
 
     }
