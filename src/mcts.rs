@@ -9,7 +9,7 @@ pub struct Node {
     action: Option<Action>,
     untried_actions: Vec<Action>,
     visits: usize,
-    wins: isize,
+    score: isize,
 }
 
 impl Node {
@@ -19,21 +19,21 @@ impl Node {
             action,
             untried_actions,
             visits: 0,
-            wins: 0,
+            score: 0,
         }
     }
 
     pub fn update_node(&mut self, result: (char, isize))  {
         self.visits += 1;
         if result.0 == self.state.next_turn {
-            self.wins += result.1;
+            self.score += result.1;
         } else {
-            self.wins -= result.1
+            self.score -= result.1
         }
     }
     // Calculates and returns the Upper Confidence Bound (UCB) for the Node
     fn calculate_ucb(&self, total_count: usize) -> f64 {
-        (self.wins as f64 / self.visits as f64) + (2.0 * (total_count as f64).ln() / self.visits as f64).sqrt()
+        (self.score as f64 / self.visits as f64) + (2.0 * (total_count as f64).ln() / self.visits as f64).sqrt()
     }
 
 }
@@ -50,9 +50,10 @@ pub struct MCTS {
 
 impl MCTS {
     pub fn new(col: &str, node: Node) -> Self {
-        let ai_color = match col {
-            b if b == "false" => 'B',
-            _ => 'W',
+        let ai_color: char;
+        match col {
+            b if b == "false".to_string() => ai_color = 'B',
+            _ => ai_color = 'W',
         };
         let mut map = HashMap::new();
         map.insert(node.state, 0 as usize);
@@ -72,12 +73,13 @@ impl MCTS {
         if let Some(root) = self.state_map.get(&from).cloned() {
             for i in 0..iterations {
                 if i % 1000 == 0 {
-                    _ = send_status(i, iterations);
+                    //println!("Progress: {i}/{iterations}");
+                   // _ = send_status(i, iterations);
                 }
                 let node_index = self.select(root.clone()).clone();
                 let node_index = self.expand(node_index.clone()).clone();
                 for index in self.tree.get(node_index).expect("No child nodes to simulate").clone().iter() {
-                    let result = &self.simulate(*index);
+                    let result: (char, isize) = self.simulate(*index);
                     self.backpropagate(*index, result.clone());
                 }
 
@@ -102,7 +104,7 @@ impl MCTS {
 
     // Selects a node from the MCTS using the Upper Confidence Bound (UCB) formula
     fn select(&self, root_index: usize) -> usize {
-        let mut max_ucb = 0.0;
+        let mut max_ucb = std::f64::MIN;
         let mut max_index = 0 as usize;
         let mut node_index = root_index;
         loop {
@@ -120,7 +122,7 @@ impl MCTS {
                 }
                 node_index = max_index;
             } 
-            max_ucb = 0.0;
+            max_ucb = std::f64::MIN;
             max_index = 0;
         }
     }
@@ -154,12 +156,12 @@ impl MCTS {
     fn simulate(&mut self, node_index: usize) -> (char, isize) {
         if let Some(node) = self.nodes.get_mut(node_index) {
             let mut node_state = node.state.clone();
-            let mut win = simulate_game(&mut node_state);
-            if self.color != node_state.next_turn {
-                win *= -1;
+            let mut score = simulate_game(&mut node_state);
+            if self.color != node.state.next_turn {
+                score *= -1;
             }
-            node.update_node((node.state.next_turn, win));
-            return (node_state.next_turn, win);
+            node.update_node((node.state.next_turn, score));
+            return (node_state.next_turn, score);
         }
         ('_', 0)
     }
