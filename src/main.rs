@@ -35,6 +35,7 @@ fn main() {
     let mut state = State::new();
     let mut mcts = MCTS::new(&ai_color, 1.0);
     let mut choice: Result<Action, ()>;
+    let mut ai_iterations: usize = 10_000;
 
     // The main game loop
     loop {
@@ -42,7 +43,10 @@ fn main() {
         match is_my_turn(ai_color.borrow()) {
             Ok(true) =>  {
                 state = get_game_state();
-                choice = mcts.search(state, 10000, send_progress);
+                choice = mcts.search(state, ai_iterations, send_progress);
+                // Gives the ai 2% more iterations every round to balance the game simulations
+                // being shorter
+                ai_iterations += ai_iterations / 50; 
 
                 // If a valid action is found, it sends the move to the server and updates the game state
                 if choice.is_ok() {
