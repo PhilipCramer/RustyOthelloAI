@@ -207,9 +207,14 @@ pub fn print_state(state: State) {
     for (i, row) in state.board.iter().enumerate() {
         print!("{i} ");
         for ch in row {
-            print!("|{}", ch);
+            let c = match ch {
+                1 => 'X',
+                0 => '0',
+                _ => '_',
+            };
+            print!("|{}", c);
         }
         print!("|\n");
     }
-    println!("Next: {}", state.next_turn)
+    println!("Next: {:2}", state.next_turn)
 }

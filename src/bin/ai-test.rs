@@ -5,30 +5,31 @@ use rusty_othello_ai::othello::State;
 pub fn main(){
     let args: Vec<String> = std::env::args().collect();
     let mut win_balance: isize = 0;
-    let a: f64 = args.get(1).expect("Missing value for A").parse().expect("Not a valid floatingpoint number");
-    let b: f64 = args.get(2).expect("Missing value for A").parse().expect("Not a valid floatingpoint number");
+    let a: f32 = args.get(1).expect("Missing value for A").parse().expect("Not a valid floatingpoint number");
+    let b: f32 = args.get(2).expect("Missing value for A").parse().expect("Not a valid floatingpoint number");
 
     let mut state = State::new();
     let mut mcts = MCTS::new("true", a);
     let mut mcts2 = MCTS::new("false", b);
+    let mut ai_iterations = 500;
     loop {
-        state = ai_turn(&mut mcts, state.clone(), 500);
+        state = ai_turn(&mut mcts, state.clone(), ai_iterations);
         if state.remaining_moves < 0 {
             break;
         }
-        state = ai_turn(&mut mcts2, state.clone(), 500);
-
+        state = ai_turn(&mut mcts2, state.clone(), ai_iterations);
         if state.remaining_moves < 0 {
             break;
         }
+        ai_iterations += ai_iterations / 100;
     }
     win_balance += determine_winner(state);
     println!("{win_balance}")
 }
 
 fn determine_winner(state: State) -> isize {
-    let p1 = 'W';
-    let p2 = 'B';
+    let p1 = 1;
+    let p2 = 0;
     let mut p1_score: isize = 0;
     let mut p2_score: isize = 0;
     for row in state.board {

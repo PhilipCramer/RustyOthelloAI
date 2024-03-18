@@ -6,11 +6,12 @@ use crate::othello::{State, Action, print_state};
 
 pub fn console_game(){
     let mut win_balance: isize = 0;
-    let a = 1.5;
+    let a = 1.0;
     println!("Game mode: player vs AI\n");
     let mut state = State::new();
     let mut mcts = MCTS::new("true", a);
     _ = std::io::stdout().flush();
+    let mut ai_iterations = 5000;
     loop {
         print_state(state);
         state = player_turn(state.clone());
@@ -18,7 +19,8 @@ pub fn console_game(){
             break;
         }
         print_state(state);
-        state = ai_turn(&mut mcts, state.clone(), 500);
+        state = ai_turn(&mut mcts, state.clone(), ai_iterations);
+        ai_iterations += ai_iterations / 100;
 
         if state.remaining_moves < 0 {
             break;
@@ -31,8 +33,8 @@ pub fn console_game(){
 }
 
 fn determine_winner(state: State) -> isize {
-    let p1 = 'W';
-    let p2 = 'B';
+    let p1 = 1;
+    let p2 = 0;
     let mut p1_score: isize = 0;
     let mut p2_score: isize = 0;
     for row in state.board {
@@ -80,7 +82,7 @@ fn player_turn(state: State) -> State {
                 match (cmd_1.parse::<usize>(), cmd_2.parse::<usize>()) {
                     (Ok(y_index), Ok(x_index)) => {
                         player_choice = Some(Action {
-                            color: 'B',
+                            color: 1,
                             x: x_index,
                             y: y_index,
                         });
