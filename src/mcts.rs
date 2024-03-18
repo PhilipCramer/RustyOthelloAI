@@ -71,12 +71,12 @@ impl MCTS {
 
     // Performs a Monte Carlo Tree Search from the given state for the given number of iterations
     // It returns the best action found or an error if no action was found
-    pub fn search(&mut self, from: State, iterations: usize, send_status: fn(usize, usize)) -> Result<Action, ()> {
+    pub fn search(&mut self, from: State, iterations: usize, send_status: fn(usize, usize, &i8)) -> Result<Action, ()> {
         if let Some(root) = self.state_map.get(&from).cloned() {
             for i in 0..iterations {
                 if i % 1000 == 0 {
                     //println!("Progress: {i}/{iterations}");
-                   // _ = send_status(i, iterations);
+                   _ = send_status(i, iterations, &self.color);
                 }
                 let node_index = self.select(root.clone()).clone();
                 let node_index = self.expand(node_index.clone()).clone();

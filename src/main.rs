@@ -62,7 +62,7 @@ fn main() {
             },
             // If it's not the AI's turn, it performs a search using MCTS and waits
             Ok(false) => {
-                let dev_null = |_a: usize, _b: usize| -> (){};
+                let dev_null = |_a: usize, _b: usize, _c: &i8| -> (){};
                 _ = mcts.search(state, 1000, dev_null);
                 //sleep(Duration::from_secs(1));
             },
@@ -148,8 +148,12 @@ fn send_move(player: &String, ai_move: Option<Action>) -> Result<Response, ureq:
     resp = ureq::get(&url).call()?;
     Ok(resp)
 }
-fn send_progress(current: usize, total: usize)  {
-    let url = format!("{}/AIStatus/{}/{}", SERVER_URL, current, total);
-    _ = ureq::get(&url).call();
+fn send_progress(current: usize, total: usize, ai_color: &i8)  {
+    let color = match ai_color {
+        1 => "false",
+        _ => "true",
+    };
+    let url = format!("{}/AIStatus/{}/{}/{}", SERVER_URL, current, total, color);
+    _ = ureq::post(&url).call();
 
 }
