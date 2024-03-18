@@ -1,4 +1,4 @@
-use std::isize;
+use std::{isize, i16};
 
 use rand::Rng;
 
@@ -7,22 +7,22 @@ const BOARD_SIZE: usize = 8;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct State {
-    pub board: [[char; BOARD_SIZE]; BOARD_SIZE],
-    pub next_turn: char,
-    pub remaining_moves: isize,
+    pub board: [[i8; BOARD_SIZE]; BOARD_SIZE],
+    pub next_turn: i8,
+    pub remaining_moves: i16,
 }
 impl State {
     pub fn new() -> Self{
         let mut new = Self {
             board: [
-                ['_'; BOARD_SIZE]; BOARD_SIZE],
-            next_turn: 'B',
+                [-1; BOARD_SIZE]; BOARD_SIZE],
+            next_turn: 1,
             remaining_moves: 60,
         };
-        new.board[3][3] = 'W';
-        new.board[3][4] = 'B';
-        new.board[4][4] = 'W';
-        new.board[4][3] = 'B';
+        new.board[3][3] = 0;
+        new.board[3][4] = 1;
+        new.board[4][4] = 0;
+        new.board[4][3] = 1;
         new
 
     }
@@ -33,7 +33,7 @@ impl State {
             for (y, ch) in row.iter().enumerate(){
                 tmp_action.x = x;
                 tmp_action.y = y;
-                if *ch == '_' {
+                if *ch == -1 {
                     for dir in vec![(0,1), (1,0), (1,1), (0,-1), (-1,0), (-1,-1), (1,-1), (-1,1)] {
                         let mut tmp_state = self.clone();
                         if tmp_state.flip_pieces(tmp_action.clone(), dir.0, dir.1){
@@ -51,9 +51,9 @@ impl State {
 
     pub fn do_action(&mut self, action: Option<Action>) -> State {
         let next_turn = match self.next_turn {
-            'B' => 'W',
-            'W' => 'B',
-            _ => '_',
+            0 => 1,
+            1 => 0,
+            _ => -1,
         };
 
         let mut new_state = State {
@@ -76,10 +76,10 @@ impl State {
         let mut to_flip = Vec::new();
         let mut x_index = (action.x as isize + x1) as usize;
         let mut y_index = (action.y as isize + y1) as usize;
-        let own_color: char = action.color;
+        let own_color = action.color.clone();
         let opponent = match action.color {
-            'B' => 'W',
-            _ => 'B',
+            0 => 1,
+            _ => 0,
         };
         loop{
             //Bounds Check
@@ -111,13 +111,13 @@ impl State {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Action {
-    pub color: char,
+    pub color: i8,
     pub x: usize,
     pub y: usize,
 }
 
 impl Action {
-    pub fn new(player: char, x1: usize, y1: usize) -> Self {
+    pub fn new(player: i8, x1: usize, y1: usize) -> Self {
         Self {
             color: player,
             x: x1,
@@ -146,11 +146,11 @@ pub fn simulate_game(state: &mut State) -> isize {
     caculate_win(state.next_turn, test_state)
 }
 
-fn caculate_win(player: char, state: State) -> isize {
+fn caculate_win(player: i8, state: State) -> isize {
     let p1 = player;
     let p2 = match p1 {
-        'W' => 'B',
-        _ => 'W',
+        1 => 0,
+        _ => 1,
     };
     let mut p1_score: isize = 0;
     let mut p2_score: isize = 0;
@@ -171,11 +171,11 @@ fn caculate_win(player: char, state: State) -> isize {
 }
 
 pub fn parse_state(json: serde_json::Value) -> State {
-    let mut new_board = [['E';BOARD_SIZE]; BOARD_SIZE];
-    let mut moves_left: isize = 0;
+    let mut new_board = [[-1;BOARD_SIZE]; BOARD_SIZE];
+    let mut moves_left: i16 = 0;
     let next = match json["turn"] {
-        serde_json::Value::Bool(true) => 'W',
-        _ => 'B',
+        serde_json::Value::Bool(true) => 1,
+        _ => 0,
 
     };
     if let Some(board) = json["board"].as_array() {
@@ -183,10 +183,10 @@ pub fn parse_state(json: serde_json::Value) -> State {
             if let Some(row) = row.as_array() {
                 for (y, cell) in row.iter().enumerate() {
                     match  cell.as_i64() {
-                        Some(1) => new_board[x][y] = 'W',
-                        Some(0) => new_board[x][y] = 'B',
+                        Some(1) => new_board[x][y] = 1,
+                        Some(0) => new_board[x][y] = 0,
                         Some(-1) => {
-                            new_board[x][y] = '_';
+                            new_board[x][y] = -1;
                             moves_left += 1;
                         },
                         _ => {},
