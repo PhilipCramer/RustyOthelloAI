@@ -116,7 +116,7 @@ impl MCTS {
             else {
                 for index in self.tree.get(node_index).unwrap().iter() {
                     let node = self.nodes.get(*index).expect("selected child doesnt exist").clone();
-                    let node_ucb = node.calculate_ucb(self.nodes.get(root_index).unwrap().visits as usize, self.expl);
+                    let node_ucb = node.calculate_ucb(self.nodes.get(node_index).unwrap().visits as usize, self.expl);
                     if node_ucb > max_ucb {
                         max_ucb = node_ucb;
                         max_index = index.clone();
