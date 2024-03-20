@@ -52,7 +52,7 @@ fn determine_winner(state: State) -> isize {
 
 
 fn ai_turn(mcts: &mut MCTS, state: State, iterations: usize) -> State {
-    let dev_null = |_a: usize, _b: usize| -> (){};
+    let dev_null = |_a: usize, _b: usize, _c: &i8 | -> (){};
     let action = mcts.search(state.clone(), iterations, dev_null); 
     if action.is_ok() {
         state.clone().do_action(Some(action.unwrap().clone()))
