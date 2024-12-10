@@ -1,6 +1,6 @@
 # Rusty Othello AI
 
-AI capable of playing the game Othello implemented in Rust.
+AI capable of playing the game Othello implemented in Rust. It is developed to work with this [game implentation](https://github.com/Kraminius/OthelloAI)
 
 ## Table of Contents
 - [Introduction](#introduction)
