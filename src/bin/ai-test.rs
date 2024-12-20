@@ -1,6 +1,6 @@
 use std::isize;
 use rusty_othello_ai::mcts::MCTS;
-use rusty_othello_ai::othello::{State,Color};
+use rusty_othello_ai::othello::{State,Color, caculate_win};
 
 pub fn main(){
     let args: Vec<String> = std::env::args().collect();
@@ -23,7 +23,11 @@ pub fn main(){
         }
         ai_iterations += ai_iterations / 100;
     }
-    win_balance += 1;//determine_winner(state);
+    win_balance += match caculate_win(state){
+        Some(Color::WHITE) => 1,
+        Some(Color::BLACK) => -1,
+        None => 0
+    };
     println!("{win_balance}")
 }
 /*

@@ -122,7 +122,7 @@ pub fn simulate_game(state: &State) -> isize {
     }
 }
 
-fn caculate_win(state: State) -> Option<Color> {
+pub fn caculate_win(state: State) -> Option<Color> {
     let mut w_score: isize = 0;
     let mut b_score: isize = 0;
     for row in state.board {
