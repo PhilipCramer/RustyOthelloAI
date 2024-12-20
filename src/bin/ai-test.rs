@@ -1,6 +1,6 @@
 use std::isize;
 use rusty_othello_ai::mcts::MCTS;
-use rusty_othello_ai::othello::State;
+use rusty_othello_ai::othello::{State,Color};
 
 pub fn main(){
     let args: Vec<String> = std::env::args().collect();
@@ -23,10 +23,10 @@ pub fn main(){
         }
         ai_iterations += ai_iterations / 100;
     }
-    win_balance += determine_winner(state);
+    win_balance += 1;//determine_winner(state);
     println!("{win_balance}")
 }
-
+/*
 fn determine_winner(state: State) -> isize {
     let p1 = 1;
     let p2 = 0;
@@ -49,10 +49,10 @@ fn determine_winner(state: State) -> isize {
     //println!("Score is\t{} {} : {} {}", p1, p1_score, p2_score, p2);
 
 }
-
+*/
 
 fn ai_turn(mcts: &mut MCTS, state: State, iterations: usize) -> State {
-    let dev_null = |_a: usize, _b: usize, _c: &i8 | -> (){};
+    let dev_null = |_a: usize, _b: usize, _c: &Color | -> (){};
     let action = mcts.search(state.clone(), iterations, dev_null); 
     if action.is_ok() {
         state.clone().do_action(Some(action.unwrap().clone()))

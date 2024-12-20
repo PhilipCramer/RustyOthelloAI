@@ -8,7 +8,7 @@ mod othello;
 mod console_game;
 use console_game::console_game;
 use mcts::MCTS;
-use othello::{State, Action, parse_state};
+use othello::{State, Action, Color, parse_state};
 
 
 
@@ -68,7 +68,7 @@ fn main() {
             },
             // If it's not the AI's turn, it performs a search using MCTS and waits
             Ok(false) => {
-                let dev_null = |_a: usize, _b: usize, _c: &i8| -> (){};
+                let dev_null = |_a: usize, _b: usize, _c: &Color| -> (){};
                 _ = mcts.search(state, 1000, dev_null);
                 //sleep(Duration::from_secs(1));
             },
@@ -154,10 +154,10 @@ fn send_move(player: &String, ai_move: Option<Action>) -> Result<Response, ureq:
     resp = ureq::get(&url).call()?;
     Ok(resp)
 }
-fn send_progress(current: usize, total: usize, ai_color: &i8)  {
+fn send_progress(current: usize, total: usize, ai_color: &Color)  {
     let color = match ai_color {
-        1 => "false",
-        _ => "true",
+        Color::BLACK => "false",
+        Color::WHITE => "true",
     };
     let url = format!("{}/AIStatus/{}/{}/{}", SERVER_URL, current, total, color);
     _ = ureq::post(&url).call();

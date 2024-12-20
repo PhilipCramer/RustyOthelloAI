@@ -1,5 +1,5 @@
 
-use crate::othello::{State, Action, simulate_game};
+use crate::othello::{State, Action, Color, simulate_game};
 use std::collections::HashMap;
 
 
@@ -23,7 +23,7 @@ impl Node {
         }
     }
 
-    pub fn update_node(&mut self, result: (i8, isize))  {
+    pub fn update_node(&mut self, result: (Color, isize))  {
         self.visits += 1;
         if result.0 == self.state.next_turn {
             self.score += result.1;
@@ -41,7 +41,7 @@ impl Node {
 #[derive()]
 pub struct MCTS {
     pub size: usize,
-    color: i8,
+    color: Color,
     expl: f32,
     nodes: Vec<Node>,
     tree: Vec<Vec<usize>>,
@@ -51,10 +51,10 @@ pub struct MCTS {
 
 impl MCTS {
     pub fn new(col: &str, explore: f32) -> Self {
-        let ai_color: i8;
+        let ai_color: Color;
         match col {
-            b if b == "false".to_string() => ai_color = 0,
-            _ => ai_color = 1,
+            b if b == "false".to_string() => ai_color = Color::BLACK,
+            _ => ai_color = Color::WHITE,
         };
         //let mut map = HashMap::new();
         //map.insert(node.state, 0 as usize);
@@ -71,7 +71,7 @@ impl MCTS {
 
     // Performs a Monte Carlo Tree Search from the given state for the given number of iterations
     // It returns the best action found or an error if no action was found
-    pub fn search(&mut self, from: State, iterations: usize, send_status: fn(usize, usize, &i8)) -> Result<Action, ()> {
+    pub fn search(&mut self, from: State, iterations: usize, send_status: fn(usize, usize, &Color)) -> Result<Action, ()> {
         if let Some(root) = self.state_map.get(&from).cloned() {
             for i in 0..iterations {
                 if i % 1000 == 0 {
@@ -81,7 +81,7 @@ impl MCTS {
                 let node_index = self.select(root.clone()).clone();
                 let node_index = self.expand(node_index.clone()).clone();
                 for index in self.tree.get(node_index).expect("No child nodes to simulate").clone().iter() {
-                    let result: (i8, isize) = self.simulate(*index);
+                    let result: (Color, isize) = self.simulate(*index);
                     self.backpropagate(*index, result.clone());
                 }
 
@@ -155,7 +155,7 @@ impl MCTS {
     }
 
     // Simulates a game from the given node and returns the result
-    fn simulate(&mut self, node_index: usize) -> (i8, isize) {
+    fn simulate(&mut self, node_index: usize) -> (Color, isize) {
         if let Some(node) = self.nodes.get_mut(node_index) {
             let mut node_state = node.state.clone();
             let mut score = simulate_game(&mut node_state);
@@ -165,11 +165,11 @@ impl MCTS {
             node.update_node((node.state.next_turn, score));
             return (node_state.next_turn, score);
         }
-        (-1, 0)
+        panic!("Node not found");
     }
 
     // Updates the nodes in the MCTS from the given child node to the root based on the result of a simulated game
-    fn backpropagate(&mut self, child_index: usize, result: (i8, isize)) {
+    fn backpropagate(&mut self, child_index: usize, result: (Color, isize)) {
         let mut current_node: &mut Node;
         let mut parent_index: Option<usize>  = self.parents.get(child_index).unwrap().clone(); 
         while parent_index.is_some() {

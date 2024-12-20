@@ -2,7 +2,7 @@ use std::io::Write;
 use std::isize;
 
 use crate::mcts::MCTS;
-use crate::othello::{State, Action, print_state};
+use crate::othello::{State, Action, Color, print_state};
 
 pub fn console_game(){
     let mut win_balance: isize = 0;
@@ -27,11 +27,11 @@ pub fn console_game(){
         }
     }
     //print_state(state);
-    win_balance += determine_winner(state);
+    win_balance += 1;//determine_winner(state);
     //println!("\nGAME OVER\n");
     println!("\nResult: {win_balance}")
 }
-
+/*
 fn determine_winner(state: State) -> isize {
     let p1 = 1;
     let p2 = 0;
@@ -54,10 +54,10 @@ fn determine_winner(state: State) -> isize {
     //println!("Score is\t{} {} : {} {}", p1, p1_score, p2_score, p2);
 
 }
-
+*/
 
 fn ai_turn(mcts: &mut MCTS, state: State, iterations: usize) -> State {
-    let dev_null = |_a: usize, _b: usize, _c: &i8 | -> (){};
+    let dev_null = |_a: usize, _b: usize, _c: &Color | -> (){};
     let action = mcts.search(state.clone(), iterations, dev_null); 
     if action.is_ok() {
         state.clone().do_action(Some(action.unwrap().clone()))
@@ -82,7 +82,7 @@ fn player_turn(state: State) -> State {
                 match (cmd_1.parse::<usize>(), cmd_2.parse::<usize>()) {
                     (Ok(y_index), Ok(x_index)) => {
                         player_choice = Some(Action {
-                            color: 1,
+                            color: Color::WHITE,
                             x: x_index,
                             y: y_index,
                         });
