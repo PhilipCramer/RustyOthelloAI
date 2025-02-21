@@ -1,38 +1,47 @@
-use std::{i16, isize, u16, usize};
 use rand::Rng;
+use std::{isize, u16, usize};
 
 const BOARD_SIZE: usize = 8;
 const FIELD_SIZE: usize = 2;
 const BLACK_BITMASK: u16 = 0b1010101010101010;
 const WHITE_BITMASK: u16 = 0b0101010101010101;
+const FLIP_BITMASK: u16 = 0b1100000000000000;
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq,)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum Color {
     BLACK,
-    WHITE
+    WHITE,
 }
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct State {
     pub board: [u16; BOARD_SIZE],
     pub next_turn: Color,
-    pub remaining_moves: i16,
+    pub remaining_moves: u8,
+    pub prev_player_skipped: bool,
 }
 impl State {
-    pub fn new() -> Self{
+    pub fn new() -> Self {
         let mut new = Self {
             board: [0; BOARD_SIZE],
             next_turn: Color::BLACK,
             remaining_moves: 60,
+            prev_player_skipped: false,
         };
-        new.board[3] = 0b11 << 7;
+        new.board[0] = 0;
+        new.board[1] = 0;
+        new.board[2] = 0;
+        new.board[3] = 0b0110 << 6;
         new.board[4] = 0b1001 << 6;
+        new.board[5] = 0;
+        new.board[6] = 0;
+        new.board[7] = 0;
         new
     }
 
     pub fn get_actions(&self) -> Vec<Action> {
         let mut actions: Vec<Action> = Vec::new();
         let mut _tmp_action = Action::new(self.next_turn, 0, 0);
-        for _row in self.board.iter(){
+        for _row in self.board.iter() {
             // TODO: Fix this
         }
         actions.push(_tmp_action);
@@ -45,14 +54,9 @@ impl State {
             Color::WHITE => Color::BLACK,
         };
 
-        let mut new_state = State {
-            next_turn: next_turn.clone(),
-            board: self.board.clone(),
-            remaining_moves: (self.remaining_moves.clone()),
-        };
+        let mut new_state = self.clone();
 
         if action.is_some() {
-            new_state.remaining_moves -= 1;
             let act = action.unwrap();
             new_state.flip_pieces(act);
         }
@@ -60,6 +64,7 @@ impl State {
     }
 
     fn flip_pieces(&mut self, action: Action) -> bool {
+        assert!(self.next_turn == action.color);
         let mut result = true;
         result = result && self.flip_row(action.clone());
         result = result && self.flip_column(action.clone());
@@ -67,10 +72,21 @@ impl State {
         return result;
     }
     fn flip_row(&mut self, action: Action) -> bool {
+        let row = self.board[action.x];
+        let offset_right = action.y * FIELD_SIZE;
+        let offset_left = (BOARD_SIZE * FIELD_SIZE) - offset_right;
+        let left_of_action = (row >> offset_left) << offset_left;
+        let right_of_action = (row << offset_right) >> offset_right;
+        if left_of_action != 0 {
+            //TODO: Check if valid flip to the left
+        }
+        if right_of_action != 0 {
+            //TODO: Check if valid flip to the left
+        }
         //TODO
         return false;
     }
-    fn flip_column(&mut self, action: Action) ->bool {
+    fn flip_column(&mut self, action: Action) -> bool {
         //TODO
         return false;
     }
@@ -79,7 +95,6 @@ impl State {
         return false;
     }
 }
-
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Action {
@@ -98,7 +113,6 @@ impl Action {
     }
 }
 
-
 pub fn simulate_game(state: &State) -> isize {
     let mut test_state = state.clone();
     let mut test_actions = test_state.get_actions();
@@ -106,8 +120,7 @@ pub fn simulate_game(state: &State) -> isize {
     while test_state.remaining_moves > 0 {
         if test_actions.len() < 1 {
             current_action = None;
-        }
-        else {
+        } else {
             let mut rng = rand::thread_rng();
             let index = rng.gen_range(0..test_actions.len());
             current_action = test_actions.get(index).cloned();
@@ -118,7 +131,7 @@ pub fn simulate_game(state: &State) -> isize {
     match caculate_win(test_state) {
         Some(Color::WHITE) => 1,
         Some(Color::BLACK) => -1,
-        None => 0
+        None => 0,
     }
 }
 
@@ -126,14 +139,14 @@ pub fn caculate_win(state: State) -> Option<Color> {
     let mut w_score: isize = 0;
     let mut b_score: isize = 0;
     for row in state.board {
-        let (w,b) = count_row(row);
+        let (w, b) = count_row(row);
         w_score += w;
         b_score += b;
     }
     match w_score - b_score {
         x if x > 0 => Some(Color::WHITE),
         x if x < 0 => Some(Color::BLACK),
-        _ => None 
+        _ => None,
     }
 }
 fn count_row(row: u16) -> (isize, isize) {
@@ -149,32 +162,31 @@ fn count_row(row: u16) -> (isize, isize) {
             b_score += 1;
         }
         b_pieces = b_pieces >> (1 * FIELD_SIZE);
-        w_pieces = w_pieces >> (1 * FIELD_SIZE) ;
+        w_pieces = w_pieces >> (1 * FIELD_SIZE);
     }
 
-    return (w_score, b_score)
+    return (w_score, b_score);
 }
 
 pub fn parse_state(json: serde_json::Value) -> State {
-    let mut new_board = [[-1;BOARD_SIZE]; BOARD_SIZE];
-    let mut moves_left: i16 = 0;
+    let mut new_board = [[-1; BOARD_SIZE]; BOARD_SIZE];
+    let mut moves_left: u8 = 0;
     let next = match json["turn"] {
         serde_json::Value::Bool(true) => Color::BLACK,
         _ => Color::WHITE,
-
     };
     if let Some(board) = json["board"].as_array() {
         for (x, row) in board.iter().enumerate() {
             if let Some(row) = row.as_array() {
                 for (y, cell) in row.iter().enumerate() {
-                    match  cell.as_i64() {
+                    match cell.as_i64() {
                         Some(1) => new_board[x][y] = 1,
                         Some(0) => new_board[x][y] = 0,
                         Some(-1) => {
                             new_board[x][y] = -1;
                             moves_left += 1;
-                        },
-                        _ => {},
+                        }
+                        _ => {}
                     }
                 }
             }
@@ -191,14 +203,15 @@ pub fn parse_state(json: serde_json::Value) -> State {
 
 pub fn print_state(state: State) {
     println!("   0 1 2 3 4 5 6 7");
+    let black_comp = 0b10 << ((BOARD_SIZE - 1) * FIELD_SIZE);
+    let white_comp = 0b01 << ((BOARD_SIZE - 1) * FIELD_SIZE);
     for (i, row) in state.board.iter().enumerate() {
         print!("{i} ");
-        for f in BOARD_SIZE..0 {
+        for f in 0..BOARD_SIZE {
             let c = {
-                if row & (0b10 << (f * FIELD_SIZE)) > 0 {
+                if row & (black_comp >> (f * FIELD_SIZE)) != 0 {
                     'B'
-                }
-                else if row & (0b01 << (f *FIELD_SIZE)) > 0  {
+                } else if row & (white_comp >> (f * FIELD_SIZE)) != 0 {
                     'W'
                 } else {
                     '_'
@@ -210,7 +223,7 @@ pub fn print_state(state: State) {
     }
     let next = match state.next_turn {
         Color::WHITE => "White",
-        Color::BLACK => "Black"
+        Color::BLACK => "Black",
     };
     println!("Next: {}", next)
 }
