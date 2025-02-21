@@ -27,14 +27,9 @@ impl State {
             remaining_moves: 60,
             prev_player_skipped: false,
         };
-        new.board[0] = 0;
-        new.board[1] = 0;
-        new.board[2] = 0;
-        new.board[3] = 0b0110 << 6;
-        new.board[4] = 0b1001 << 6;
-        new.board[5] = 0;
-        new.board[6] = 0;
-        new.board[7] = 0;
+        let center = (BOARD_SIZE / 2) - 1;
+        new.board[3] = 0b0110 << (center * FIELD_SIZE);
+        new.board[4] = 0b1001 << (center * FIELD_SIZE);
         new
     }
 
