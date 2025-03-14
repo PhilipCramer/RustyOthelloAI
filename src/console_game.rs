@@ -61,6 +61,7 @@ fn player_turn(state: State) -> State {
     let mut player_choice: Option<Action>;
     loop {
         print!("Enter coordinates for desired move: ");
+        let _ = std::io::stdout().flush();
         let cmd = read_command();
         match cmd {
             GameCommand::QUIT => exit(0),
@@ -92,7 +93,7 @@ fn player_turn(state: State) -> State {
 fn read_command() -> GameCommand {
     let mut buf = String::new();
     let _ = std::io::stdin().read_line(&mut buf);
-    match buf.to_lowercase().as_str() {
+    match buf.to_lowercase().as_str().trim() {
         "quit" => GameCommand::QUIT,
         "skip" => GameCommand::SKIP,
         line => {
