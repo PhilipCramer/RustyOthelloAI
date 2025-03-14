@@ -1,8 +1,19 @@
 use std::io::Write;
 use std::isize;
+use std::process::exit;
 
 use crate::mcts::MCTS;
 use crate::othello::{caculate_win, print_state, Action, Color, State};
+
+struct PlayerCmd {
+    pub cmd: GameCommand,
+}
+enum GameCommand {
+    SKIP,
+    QUIT,
+    INVALID,
+    MOVE(usize, usize),
+}
 
 pub fn console_game() {
     let mut win_balance: isize = 0;
@@ -48,41 +59,53 @@ fn ai_turn(mcts: &mut MCTS, state: State, iterations: usize) -> State {
 
 fn player_turn(state: State) -> State {
     let mut player_choice: Option<Action>;
-    let mut buf = String::new();
     loop {
         print!("Enter coordinates for desired move: ");
-        let _ = std::io::stdout().flush();
-        let _ = std::io::stdin().read_line(&mut buf);
-        let cmd: Vec<&str> = buf.trim().split(",").clone().collect();
-        match (cmd.get(0), cmd.get(1)) {
-            (Some(cmd_1), Some(cmd_2)) => match (cmd_1.parse::<usize>(), cmd_2.parse::<usize>()) {
-                (Ok(y_index), Ok(x_index)) => {
-                    player_choice = Some(Action {
-                        color: Color::BLACK,
-                        x: x_index,
-                        y: y_index,
-                    });
-                    if state
-                        .get_actions()
-                        .contains(&player_choice.clone().unwrap())
-                    {
-                        break;
-                    } else {
-                        println!("Invalid move");
-                    }
-                }
-                _ => println!("Please provide only numbers for indexes"),
-            },
-            (Some(skip), None) => {
-                if skip.to_lowercase() == "skip".to_string() {
-                    player_choice = None;
+        let cmd = read_command();
+        match cmd {
+            GameCommand::QUIT => exit(0),
+            GameCommand::INVALID => {
+                println!("Please provide a valid command 'quit' 'skip' or 'x,y'")
+            }
+            GameCommand::SKIP => {
+                player_choice = None;
+                break;
+            }
+            GameCommand::MOVE(x_index, y_index) => {
+                player_choice = Some(Action {
+                    color: Color::BLACK,
+                    x: x_index,
+                    y: y_index,
+                });
+                if state
+                    .get_actions()
+                    .contains(&player_choice.clone().unwrap())
+                {
                     break;
                 }
             }
-            _ => println!("Please provide a move in the form of 1,2 or \"skip\""),
         }
-        buf.clear();
     }
-    buf.clear();
     state.clone().do_action(player_choice)
+}
+
+fn read_command() -> GameCommand {
+    let mut buf = String::new();
+    let _ = std::io::stdin().read_line(&mut buf);
+    match buf.to_lowercase().as_str() {
+        "quit" => GameCommand::QUIT,
+        "skip" => GameCommand::SKIP,
+        line => {
+            let cmd: Vec<&str> = line.trim().split(",").clone().collect();
+            match (cmd.get(0), cmd.get(1)) {
+                (Some(cmd_1), Some(cmd_2)) => {
+                    match (cmd_1.parse::<usize>(), cmd_2.parse::<usize>()) {
+                        (Ok(y_index), Ok(x_index)) => GameCommand::MOVE(x_index, y_index),
+                        _ => GameCommand::INVALID,
+                    }
+                }
+                _ => GameCommand::INVALID,
+            }
+        }
+    }
 }
