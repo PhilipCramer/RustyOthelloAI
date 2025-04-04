@@ -1,7 +1,6 @@
 use crate::othello::{simulate_game, Action, Color, State};
 use std::collections::HashMap;
 
-
 #[derive(Debug, Clone)]
 pub struct Node {
     state: State,
@@ -35,7 +34,6 @@ impl Node {
         (self.score as f32 / self.visits as f32)
             + explore * (2.0 * (total_count as f32).ln() / self.visits as f32).sqrt()
     }
-
 }
 
 #[derive()]
@@ -252,4 +250,3 @@ impl MCTS {
         }
     }
 }
-
