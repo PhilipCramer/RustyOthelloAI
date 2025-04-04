@@ -5,9 +5,6 @@ use std::process::exit;
 use crate::mcts::MCTS;
 use crate::othello::{caculate_win, print_state, Action, Color, State};
 
-struct PlayerCmd {
-    pub cmd: GameCommand,
-}
 enum GameCommand {
     SKIP,
     QUIT,
