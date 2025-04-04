@@ -1,11 +1,7 @@
-use ureq::Response;
 use std::process::exit;
-use std::usize;
-use std::{thread::sleep, borrow::Borrow};
 use std::time::Duration;
 mod mcts;
 mod othello;
-mod console_game;
 use console_game::console_game;
 use mcts::MCTS;
 use othello::{parse_state, Action, Color, State};
@@ -36,7 +32,6 @@ fn main() {
             exit(0);
         }
         _ => panic!("Please pass a proper argument to the AI"),
-
     }
     // Initialize the game state and the Monte Carlo Tree Search (MCTS)
     // The MCTS is initialized with a new node that represents the current game state
@@ -170,5 +165,4 @@ fn send_progress(current: usize, total: usize, ai_color: &Color) {
     };
     let url = format!("{}/AIStatus/{}/{}/{}", SERVER_URL, current, total, color);
     _ = ureq::post(&url).call();
-
 }

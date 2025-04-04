@@ -95,7 +95,6 @@ impl MCTS {
                     let result: (Color, isize) = self.simulate(*index);
                     self.backpropagate(*index, result.clone());
                 }
-
             }
             Ok(self.get_best_choice(root)?)
         } else {
