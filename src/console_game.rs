@@ -3,7 +3,7 @@ use std::isize;
 use std::process::exit;
 
 use crate::mcts::MCTS;
-use crate::othello::{caculate_win, print_state, Action, Color, State};
+use crate::othello::{caculate_win, print_state, Action, Color, Position, State};
 
 enum GameCommand {
     SKIP,
@@ -19,7 +19,7 @@ pub fn console_game() {
     let mut state = State::new();
     let mut mcts = MCTS::new("true", a);
     _ = std::io::stdout().flush();
-    let mut ai_iterations = 5000;
+    let mut ai_iterations = 20000;
     loop {
         print_state(state);
         state = player_turn(state.clone());
@@ -36,18 +36,28 @@ pub fn console_game() {
     }
     //print_state(state);
     win_balance += match caculate_win(state) {
-        Some(Color::WHITE) => 1,
-        Some(Color::BLACK) => -1,
-        None => 0,
+        Some(Color::WHITE) => {
+            println!("White wins!");
+            1
+        }
+        Some(Color::BLACK) => {
+            println!("Black wins!");
+            -1
+        }
+        None => {
+            println!("Draw.");
+            0
+        }
     };
     //println!("\nGAME OVER\n");
     println!("\nResult: {win_balance}")
 }
 
 fn ai_turn(mcts: &mut MCTS, state: State, iterations: usize) -> State {
-    let dev_null = |_a: usize, _b: usize, _c: &Color| -> () {};
+    let dev_null = |a: usize, b: usize, _c: &Color| -> () { /*println!("Progress: {a}/{b}")*/ };
     let action = mcts.search(state.clone(), iterations, dev_null);
     if action.is_ok() {
+        println!("{:?}", action.clone().unwrap().position);
         state.clone().do_action(Some(action.unwrap().clone()))
     } else {
         state.clone().do_action(None)
@@ -55,7 +65,7 @@ fn ai_turn(mcts: &mut MCTS, state: State, iterations: usize) -> State {
 }
 
 fn player_turn(state: State) -> State {
-    let mut player_choice: Option<Action>;
+    let mut player_choice;
     loop {
         print!("Enter coordinates for desired move: ");
         let _ = std::io::stdout().flush();
@@ -72,14 +82,25 @@ fn player_turn(state: State) -> State {
             GameCommand::MOVE(x_index, y_index) => {
                 player_choice = Some(Action {
                     color: Color::BLACK,
-                    x: x_index,
-                    y: y_index,
+                    position: Position {
+                        x: x_index,
+                        y: y_index,
+                    },
                 });
                 if state
                     .get_actions()
                     .contains(&player_choice.clone().unwrap())
                 {
                     break;
+                } else {
+                    println!("Invalid move.");
+                    let pos: Vec<(usize, usize)> = state
+                        .get_actions()
+                        .iter()
+                        .map(|a| (a.position.y, a.position.x))
+                        .collect();
+                    println!("Valid moves: {:?}", pos);
+                    print_state(state);
                 }
             }
         }
