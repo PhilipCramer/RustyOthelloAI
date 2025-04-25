@@ -510,7 +510,7 @@ pub fn print_state(state: State) {
 }
 
 #[cfg(test)]
-mod OthelloTests {
+mod othello_tests {
     use super::*;
 
     #[test]
