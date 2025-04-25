@@ -151,7 +151,7 @@ fn send_move(player: &String, ai_move: Option<Action>) -> Result<Response, ureq:
         let ai_choice = ai_move.unwrap();
         url = format!(
             "{}/setChoice/{}/{}/{}",
-            SERVER_URL, ai_choice.x, ai_choice.y, player
+            SERVER_URL, ai_choice.position.x, ai_choice.position.y, player
         );
     }
     // If the AI does not have a move, format the URL for the skipTurn endpoint
