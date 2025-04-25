@@ -54,7 +54,7 @@ pub fn console_game() {
 }
 
 fn ai_turn(mcts: &mut MCTS, state: State, iterations: usize) -> State {
-    let dev_null = |a: usize, b: usize, _c: &Color| -> () { /*println!("Progress: {a}/{b}")*/ };
+    let dev_null = |_a: usize, _b: usize, _c: &Color| -> () { /*println!("Progress: {a}/{b}")*/ };
     let action = mcts.search(state.clone(), iterations, dev_null);
     if action.is_ok() {
         println!("{:?}", action.clone().unwrap().position);
