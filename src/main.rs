@@ -1,14 +1,10 @@
-use ureq::Response;
+use rusty_othello_ai::mcts::MCTS;
+use rusty_othello_ai::othello::{parse_state, Action, State};
 use std::thread::current;
-use std::usize;
-use std::{thread::sleep, borrow::Borrow};
 use std::time::Duration;
-mod mcts;
-mod othello;
-use mcts::{MCTS, Node};
-use othello::{State, Action, parse_state};
-
-
+use std::usize;
+use std::{borrow::Borrow, thread::sleep};
+use ureq::Response;
 
 const SERVER_URL: &str = "http://localhost:8181";
 
@@ -18,7 +14,11 @@ fn main() {
     // If the argument is not recognized, the program will panic
     let args: Vec<String> = std::env::args().collect();
     let ai_color;
-    match args.get(1).expect("Please specify color to the AI").to_lowercase() {
+    match args
+        .get(1)
+        .expect("Please specify color to the AI")
+        .to_lowercase()
+    {
         x if x == "false" => ai_color = x,
         x if x == "0" => ai_color = "false".to_string(),
         x if x == "b" => ai_color = "false".to_string(),
@@ -28,7 +28,6 @@ fn main() {
         x if x == "w" => ai_color = "true".to_string(),
         x if x == "white" => ai_color = "true".to_string(),
         _ => panic!("Please pass a proper argument to the AI"),
-
     }
     // Initialize the game state and the Monte Carlo Tree Search (MCTS)
     // The MCTS is initialized with a new node that represents the current game state
@@ -41,12 +40,12 @@ fn main() {
     loop {
         // The AI checks if it's its turn, if so, it gets the current game state and performs a search using MCTS
         match is_my_turn(ai_color.borrow()) {
-            Ok(true) =>  {
+            Ok(true) => {
                 state = get_game_state();
                 choice = mcts.search(state, ai_iterations, send_progress);
                 // Gives the ai 2% more iterations every round to balance the game simulations
                 // being shorter
-                ai_iterations += ai_iterations / 50; 
+                ai_iterations += ai_iterations / 50;
 
                 // If a valid action is found, it sends the move to the server and updates the game state
                 if choice.is_ok() {
@@ -56,16 +55,15 @@ fn main() {
                 // If no valid action is found, it sends a pass move to the server and updates the game state
                 else {
                     let _ = send_move(&ai_color, None);
-                    state.do_action(None); 
+                    state.do_action(None);
                 }
-
-            },
+            }
             // If it's not the AI's turn, it performs a search using MCTS and waits
             Ok(false) => {
-                let dev_null = |_a: usize, _b: usize, _c: &i8| -> (){};
+                let dev_null = |_a: usize, _b: usize, _c: &i8| -> () {};
                 _ = mcts.search(state, 1000, dev_null);
                 //sleep(Duration::from_secs(1));
-            },
+            }
             Err(e) => {
                 eprintln!("Error checking turn: {}", e);
                 sleep(Duration::from_secs(1));
@@ -79,7 +77,7 @@ fn is_my_turn(ai: &String) -> Result<bool, Box<dyn std::error::Error>> {
     let mut delay = Duration::from_secs(1);
     let opponent = match ai {
         x if x == "true" => "false",
-        _ => "true"
+        _ => "true",
     };
     loop {
         let url = format!("{}/turn", SERVER_URL);
@@ -94,10 +92,13 @@ fn is_my_turn(ai: &String) -> Result<bool, Box<dyn std::error::Error>> {
                     // If the response is anything else, the function returns an error
                     _ => return Err("Unexpected response from server".into()),
                 }
-            },
+            }
             Err(e) => {
                 // Error occurred, possibly a network issue or server error, wait before trying again
-                eprintln!("Error checking turn: {}, will retry after {:?} seconds", e, delay);
+                eprintln!(
+                    "Error checking turn: {}, will retry after {:?} seconds",
+                    e, delay
+                );
                 sleep(delay);
                 delay = std::cmp::min(delay.saturating_mul(2), Duration::from_secs(10));
             }
@@ -112,12 +113,14 @@ fn get_game_state() -> State {
     let mut delay = Duration::from_secs(3);
     loop {
         match get_json() {
-            Ok(resp) => return parse_state(resp.into_json().expect("Error parsing response to json")),
+            Ok(resp) => {
+                return parse_state(resp.into_json().expect("Error parsing response to json"))
+            }
             Err(_e) => {
                 sleep(delay);
                 delay *= 2;
                 delay = std::cmp::min(Duration::from_millis(10000), delay);
-            },
+            }
         }
     }
 }
@@ -138,7 +141,10 @@ fn send_move(player: &String, ai_move: Option<Action>) -> Result<Response, ureq:
     // The setChoice endpoint requires the x and y coordinates of the move and the player
     if ai_move.is_some() {
         let ai_choice = ai_move.unwrap();
-        url =  format!("{}/setChoice/{}/{}/{}",SERVER_URL, ai_choice.x, ai_choice.y, player);
+        url = format!(
+            "{}/setChoice/{}/{}/{}",
+            SERVER_URL, ai_choice.x, ai_choice.y, player
+        );
     }
     // If the AI does not have a move, format the URL for the skipTurn endpoint
     // The skipTurn endpoint requires the player
@@ -148,12 +154,11 @@ fn send_move(player: &String, ai_move: Option<Action>) -> Result<Response, ureq:
     resp = ureq::get(&url).call()?;
     Ok(resp)
 }
-fn send_progress(current: usize, total: usize, ai_color: &i8)  {
+fn send_progress(current: usize, total: usize, ai_color: &i8) {
     let color = match ai_color {
         1 => "false",
         _ => "true",
     };
     let url = format!("{}/AIStatus/{}/{}/{}", SERVER_URL, current, total, color);
     _ = ureq::post(&url).call();
-
 }
