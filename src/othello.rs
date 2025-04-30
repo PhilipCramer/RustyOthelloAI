@@ -396,6 +396,7 @@ impl Action {
     }
 }
 
+#[inline]
 pub fn simulate_game(state: &State) -> isize {
     let mut test_state = state.clone();
     let mut consecutive_skips = 0;
@@ -475,7 +476,7 @@ pub fn parse_state(json: serde_json::Value) -> State {
             }
         }
     }
-    State{
+    State {
         board: new_board,
         next_turn: next,
         remaining_moves: moves_left,
