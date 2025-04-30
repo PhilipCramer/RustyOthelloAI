@@ -178,6 +178,10 @@ impl Board {
         new_rows[(center + 1) as usize] = Row::new(0b0110 << (center * FIELD_SIZE));
         Self { rows: new_rows }
     }
+    fn blank() -> Board {
+        let new_rows = [Row::new(0); BOARD_SIZE as usize];
+        Self { rows: new_rows }
+    }
     fn flip_pieces(&self, action: Action, position: Position, dir: Direction) -> Option<Board> {
         let mut to_flip = Vec::new();
         let mut current_pos = position;
@@ -451,11 +455,10 @@ pub fn caculate_win(state: State) -> Option<Color> {
 }
 
 pub fn parse_state(json: serde_json::Value) -> State {
-    todo!("Fix parse_state")
-    /* TODO: Fix
-    let mut new_board = [[-1; BOARD_SIZE]; BOARD_SIZE];
+    //todo!("Fix parse_state")
+    let mut new_board = Board::blank();
     let mut moves_left: u8 = 0;
-    let _next = match json["turn"] {
+    let next = match json["turn"] {
         serde_json::Value::Bool(true) => Color::BLACK,
         _ => Color::WHITE,
     };
@@ -464,10 +467,13 @@ pub fn parse_state(json: serde_json::Value) -> State {
             if let Some(row) = row.as_array() {
                 for (y, cell) in row.iter().enumerate() {
                     match cell.as_i64() {
-                        Some(1) => new_board[x][y] = 1,
-                        Some(0) => new_board[x][y] = 0,
+                        Some(1) => {
+                            new_board.rows[y] = new_board.rows[y].set_pos(Color::WHITE, x).unwrap()
+                        }
+                        Some(0) => {
+                            new_board.rows[y] = new_board.rows[y].set_pos(Color::BLACK, x).unwrap()
+                        }
                         Some(-1) => {
-                            new_board[x][y] = -1;
                             moves_left += 1;
                         }
                         _ => {}
@@ -480,7 +486,8 @@ pub fn parse_state(json: serde_json::Value) -> State {
         board: new_board,
         next_turn: next,
         remaining_moves: moves_left,
-    }*/
+        prev_player_skipped: false,
+    }
 }
 
 pub fn print_state(state: State) {
