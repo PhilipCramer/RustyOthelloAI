@@ -38,30 +38,6 @@ pub fn main() {
     };
     println!("{win_balance}")
 }
-/*
-fn determine_winner(state: State) -> isize {
-    let p1 = 1;
-    let p2 = 0;
-    let mut p1_score: isize = 0;
-    let mut p2_score: isize = 0;
-    for row in state.board {
-        for ch in row {
-            if ch == p1 {
-                p1_score += 1;
-            }else if ch == p2 {
-                p2_score += 1;
-            }
-        }
-    }
-    match p1_score - p2_score {
-        x if x > 0 => 1,
-        x if x < 0 => -1,
-        _ => 0,
-    }
-    //println!("Score is\t{} {} : {} {}", p1, p1_score, p2_score, p2);
-
-}
-*/
 
 fn ai_turn(mcts: &mut MCTS, state: State, iterations: usize) -> State {
     let dev_null = |_a: usize, _b: usize, _c: &Color| -> () {};
