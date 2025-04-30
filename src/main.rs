@@ -1,10 +1,14 @@
-use rusty_othello_ai::mcts::MCTS;
-use rusty_othello_ai::othello::{parse_state, Action, State};
-use std::thread::current;
+use std::process::exit;
 use std::time::Duration;
 use std::usize;
 use std::{borrow::Borrow, thread::sleep};
 use ureq::Response;
+mod console_game;
+mod mcts;
+mod othello;
+use console_game::console_game;
+use mcts::MCTS;
+use othello::{parse_state, Action, Color, State};
 
 const SERVER_URL: &str = "http://localhost:8181";
 
@@ -27,6 +31,10 @@ fn main() {
         x if x == "1" => ai_color = "true".to_string(),
         x if x == "w" => ai_color = "true".to_string(),
         x if x == "white" => ai_color = "true".to_string(),
+        x if x == "console" => {
+            console_game();
+            exit(0);
+        }
         _ => panic!("Please pass a proper argument to the AI"),
     }
     // Initialize the game state and the Monte Carlo Tree Search (MCTS)
@@ -60,7 +68,7 @@ fn main() {
             }
             // If it's not the AI's turn, it performs a search using MCTS and waits
             Ok(false) => {
-                let dev_null = |_a: usize, _b: usize, _c: &i8| -> () {};
+                let dev_null = |_a: usize, _b: usize, _c: &Color| -> () {};
                 _ = mcts.search(state, 1000, dev_null);
                 //sleep(Duration::from_secs(1));
             }
@@ -143,7 +151,7 @@ fn send_move(player: &String, ai_move: Option<Action>) -> Result<Response, ureq:
         let ai_choice = ai_move.unwrap();
         url = format!(
             "{}/setChoice/{}/{}/{}",
-            SERVER_URL, ai_choice.x, ai_choice.y, player
+            SERVER_URL, ai_choice.position.x, ai_choice.position.y, player
         );
     }
     // If the AI does not have a move, format the URL for the skipTurn endpoint
@@ -154,10 +162,10 @@ fn send_move(player: &String, ai_move: Option<Action>) -> Result<Response, ureq:
     resp = ureq::get(&url).call()?;
     Ok(resp)
 }
-fn send_progress(current: usize, total: usize, ai_color: &i8) {
+fn send_progress(current: usize, total: usize, ai_color: &Color) {
     let color = match ai_color {
-        1 => "false",
-        _ => "true",
+        Color::BLACK => "false",
+        Color::WHITE => "true",
     };
     let url = format!("{}/AIStatus/{}/{}/{}", SERVER_URL, current, total, color);
     _ = ureq::post(&url).call();
