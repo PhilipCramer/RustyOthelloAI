@@ -33,6 +33,12 @@ cargo run --release <color>
 ```
 Replace `<color>` with either `black` or `white` to specify the AI's color.
 
+
+To play against the AI in the terminal, execute the following command:
+```sh
+cargo run --release console
+```
+
 ## Project Structure
 - `src/main.rs`: The main entry point of the application. It handles the game loop, command-line arguments, and interactions with the server.
 - `src/mcts.rs`: Contains the implementation of the Monte Carlo Tree Search algorithm.
