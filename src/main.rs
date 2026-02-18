@@ -2,7 +2,8 @@ use std::process::exit;
 use std::time::Duration;
 use std::usize;
 use std::{borrow::Borrow, thread::sleep};
-use ureq::Response;
+use ureq::http::Response;
+use ureq::Body;
 mod console_game;
 mod mcts;
 mod othello;
@@ -91,8 +92,8 @@ fn is_my_turn(ai: &String) -> Result<bool, Box<dyn std::error::Error>> {
         let url = format!("{}/turn", SERVER_URL);
         match ureq::get(&url).call() {
             Ok(response) => {
-                let body = response.into_string()?;
-                match body.trim() {
+                let mut body = response.into_body();
+                match &body.read_to_string()? {
                     // If the response is "true", it's the AI's turn and the function returns Ok(true)
                     x if x == ai => return Ok(true),
                     // If the response is "false", it's not the AI's turn and the function returns Ok(false)
@@ -122,7 +123,11 @@ fn get_game_state() -> State {
     loop {
         match get_json() {
             Ok(resp) => {
-                return parse_state(resp.into_json().expect("Error parsing response to json"))
+                return parse_state(
+                    resp.into_body()
+                        .read_json()
+                        .expect("Error parsing response to json"),
+                )
             }
             Err(_e) => {
                 sleep(delay);
@@ -135,14 +140,14 @@ fn get_game_state() -> State {
 
 // This function makes a GET request to the server to get the current game board
 // The response is returned as a Result
-fn get_json() -> Result<Response, ureq::Error> {
+fn get_json() -> Result<Response<Body>, ureq::Error> {
     let url = format!("{}/board", SERVER_URL);
     let resp = ureq::get(&url).call()?;
     Ok(resp)
 }
 
 // Function to send the AI's move to the server
-fn send_move(player: &String, ai_move: Option<Action>) -> Result<Response, ureq::Error> {
+fn send_move(player: &String, ai_move: Option<Action>) -> Result<Response<Body>, ureq::Error> {
     let resp;
     let url;
     // If the AI has a move, format the URL for the setChoice endpoint
@@ -168,5 +173,5 @@ fn send_progress(current: usize, total: usize, ai_color: &Color) {
         Color::WHITE => "true",
     };
     let url = format!("{}/AIStatus/{}/{}/{}", SERVER_URL, current, total, color);
-    _ = ureq::post(&url).call();
+    _ = ureq::post(&url);
 }

@@ -1,4 +1,4 @@
-use rand::Rng;
+use rand::prelude::*;
 use std::{fmt, isize, u16, usize};
 
 const BOARD_SIZE: usize = 8;
@@ -400,7 +400,6 @@ impl Action {
     }
 }
 
-#[inline]
 pub fn simulate_game(state: &State) -> isize {
     let mut test_state = state.clone();
     let mut consecutive_skips = 0;
@@ -419,8 +418,8 @@ pub fn simulate_game(state: &State) -> isize {
             current_action = None;
             consecutive_skips += 1;
         } else {
-            let mut rng = rand::thread_rng();
-            let index = rng.gen_range(0..test_actions.len());
+            let mut rng = rand::rng();
+            let index = rng.random_range(0..test_actions.len());
             current_action = Some(test_actions[index].clone());
             consecutive_skips = 0;
         }

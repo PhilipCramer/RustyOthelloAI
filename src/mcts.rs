@@ -1,5 +1,5 @@
 use crate::othello::{simulate_game, Action, Color, State};
-use rand::Rng;
+use rand::prelude::*;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -153,8 +153,8 @@ impl MCTS {
             return self.size - 1;
         } else {
             // Pick one random action to expand (not all at once)
-            let mut rng = rand::thread_rng();
-            let action_index = rng.gen_range(0..untried_actions.len());
+            let mut rng = rand::rng();
+            let action_index = rng.random_range(0..untried_actions.len());
             let action = untried_actions[action_index].clone();
 
             // Remove this action from untried_actions in the original node
