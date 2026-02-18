@@ -5,6 +5,7 @@ use std::{borrow::Borrow, thread::sleep};
 use ureq::Response;
 mod console_game;
 mod mcts;
+mod mini_max;
 mod othello;
 use console_game::console_game;
 use mcts::MCTS;

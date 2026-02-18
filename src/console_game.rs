@@ -3,6 +3,7 @@ use std::isize;
 use std::process::exit;
 
 use crate::mcts::MCTS;
+use crate::mini_max::search;
 use crate::othello::{caculate_win, print_state, Action, Color, Position, State};
 
 enum GameCommand {
@@ -18,24 +19,30 @@ pub fn console_game() {
     println!("Game mode: player vs AI\n");
     let mut state = State::new();
     let mut mcts = MCTS::new("true", a);
+    let mut mcts_2 = MCTS::new("false", a);
     _ = std::io::stdout().flush();
-    let mut ai_iterations = 20000;
+    let mut ai_iterations = 100_000;
+    _ = mcts.search(state, ai_iterations, |_, _, _| -> () {});
+    ai_iterations = 20_000;
     loop {
         print_state(state);
-        state = player_turn(state.clone());
+        //state = player_turn(state.clone());
+        //state = ai_turn(&mut mcts_2, state.clone(), ai_iterations);
+        state = ai_turn_2(state, 10, true);
         if state.remaining_moves == 0 {
             break;
         }
         print_state(state);
+        //state = ai_turn_2(state, 10, false);
         state = ai_turn(&mut mcts, state.clone(), ai_iterations);
-        ai_iterations += ai_iterations / 100;
+        ai_iterations += ai_iterations / 10; //(ai_iterations / 100) * 5;
 
         if state.remaining_moves == 0 {
             break;
         }
     }
     //print_state(state);
-    win_balance += match caculate_win(state) {
+    win_balance += match caculate_win(&state) {
         Some(Color::WHITE) => {
             println!("White wins!");
             1
@@ -53,14 +60,22 @@ pub fn console_game() {
     println!("\nResult: {win_balance}")
 }
 
-fn ai_turn(mcts: &mut MCTS, state: State, iterations: usize) -> State {
+pub fn ai_turn(mcts: &mut MCTS, state: State, iterations: usize) -> State {
     let dev_null = |_a: usize, _b: usize, _c: &Color| -> () { /*println!("Progress: {a}/{b}")*/ };
     let action = mcts.search(state.clone(), iterations, dev_null);
     if action.is_ok() {
-        println!("{:?}", action.clone().unwrap().position);
+        //println!("{:?}", action.clone().unwrap().position);
         state.clone().do_action(Some(action.unwrap().clone()))
     } else {
         state.clone().do_action(None)
+    }
+}
+pub fn ai_turn_2(state: State, depth: isize, maximizing_player: bool) -> State {
+    let (act, _) = search(&state, depth, 0, 0, maximizing_player);
+    if let Some(action) = act {
+        state.do_action(Some(action))
+    } else {
+        state.do_action(None)
     }
 }
 

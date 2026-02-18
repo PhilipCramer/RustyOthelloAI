@@ -168,18 +168,18 @@ impl Row {
 }
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 struct Board {
-    rows: [Row; BOARD_SIZE as usize],
+    rows: [Row; BOARD_SIZE],
 }
 impl Board {
     fn new() -> Board {
-        let mut new_rows = [Row::new(0); BOARD_SIZE as usize];
+        let mut new_rows = [Row::new(0); BOARD_SIZE];
         let center = (BOARD_SIZE / 2) - 1;
         new_rows[center as usize] = Row::new(0b1001 << (center * FIELD_SIZE));
         new_rows[(center + 1) as usize] = Row::new(0b0110 << (center * FIELD_SIZE));
         Self { rows: new_rows }
     }
     fn blank() -> Board {
-        let new_rows = [Row::new(0); BOARD_SIZE as usize];
+        let new_rows = [Row::new(0); BOARD_SIZE];
         Self { rows: new_rows }
     }
     fn flip_pieces(&self, action: Action, position: Position, dir: Direction) -> Option<Board> {
@@ -432,14 +432,22 @@ pub fn simulate_game(state: &State) -> isize {
             break;
         }
     }
-    match caculate_win(test_state) {
+    match caculate_win(&test_state) {
         Some(Color::WHITE) => 1,
         Some(Color::BLACK) => -1,
         None => 0,
     }
 }
 
-pub fn caculate_win(state: State) -> Option<Color> {
+pub fn caculate_win(state: &State) -> Option<Color> {
+    let (b_score, w_score) = calculate_scores(&state);
+    match w_score - b_score {
+        x if x > 0 => Some(Color::WHITE),
+        x if x < 0 => Some(Color::BLACK),
+        _ => None,
+    }
+}
+pub fn calculate_scores(state: &State) -> (isize, isize) {
     let mut w_score: isize = 0;
     let mut b_score: isize = 0;
     for row in state.board.rows {
@@ -447,11 +455,7 @@ pub fn caculate_win(state: State) -> Option<Color> {
         w_score += w;
         b_score += b;
     }
-    match w_score - b_score {
-        x if x > 0 => Some(Color::WHITE),
-        x if x < 0 => Some(Color::BLACK),
-        _ => None,
-    }
+    (b_score, w_score)
 }
 
 pub fn parse_state(json: serde_json::Value) -> State {
