@@ -151,19 +151,9 @@ impl Row {
         }
     }
     fn count_colors(&self) -> (isize, isize) {
-        let mut w_score = 0;
-        let mut b_score = 0;
-        let mut row = self.value.clone();
-        for _ in 0..BOARD_SIZE {
-            if row & Color::WHITE.bitmask() > 0 {
-                w_score += 1;
-            }
-            if row & Color::BLACK.bitmask() > 0 {
-                b_score += 1;
-            }
-            row = row >> FIELD_SIZE;
-        }
-        return (w_score, b_score);
+        let whites = self.value & 0x5555; // mask odd bits (WHITE = 0b01)
+        let blacks = (self.value >> 1) & 0x5555; // mask even bits (BLACK = 0b10)
+        (whites.count_ones() as isize, blacks.count_ones() as isize)
     }
 }
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -270,7 +260,7 @@ impl IntoIterator for Board {
     type IntoIter = BoardIntoIterator;
     fn into_iter(self) -> Self::IntoIter {
         BoardIntoIterator {
-            board: self.clone(),
+            board: self,
             index: 0,
         }
     }
@@ -314,7 +304,7 @@ impl State {
             return actions;
         }
         for pos in empty_spots {
-            let action = Action::new(self.next_turn.clone(), pos);
+            let action = Action::new(self.next_turn, pos);
             if self.is_valid_action(action.clone()) {
                 actions.push(action);
             }
@@ -325,7 +315,7 @@ impl State {
         for dir in Direction::VALUES {
             if self
                 .board
-                .would_flip_pieces(action.clone(), action.position.clone(), dir)
+                .would_flip_pieces(action.clone(), action.position, dir)
             {
                 return true;
             }
@@ -385,7 +375,7 @@ impl State {
     }
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Action {
     pub color: Color,
     pub position: Position,
@@ -420,7 +410,7 @@ pub fn simulate_game(state: &State) -> isize {
         } else {
             let mut rng = rand::rng();
             let index = rng.random_range(0..test_actions.len());
-            current_action = Some(test_actions[index].clone());
+            current_action = Some(test_actions[index]);
             consecutive_skips = 0;
         }
 
