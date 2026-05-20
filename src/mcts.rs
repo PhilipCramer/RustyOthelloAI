@@ -79,7 +79,7 @@ impl MCTS {
         if let Some(&root) = self.state_map.get(&from) {
             for i in 0..iterations {
                 if i % 1000 == 0 {
-                    _ = send_status(i, iterations, &self.color);
+                    send_status(i, iterations, &self.color);
                 }
                 let selected_node = self.select(root);
                 let expanded_node = self.expand(selected_node);
@@ -164,10 +164,7 @@ impl MCTS {
                 .swap_remove(action_index);
 
             // Create a new node with this action
-            let new_state = self.nodes[node_index]
-                .state
-                .clone()
-                .do_action(Some(action.clone()));
+            let new_state = self.nodes[node_index].state.clone().do_action(Some(action));
             self.add_node(new_state, Some(action), Some(node_index));
             self.tree[node_index].push(self.size - 1);
 
@@ -178,16 +175,15 @@ impl MCTS {
 
     // Simulates a game from the given node and returns the result
     fn simulate(&mut self, node_index: usize) -> (Color, isize) {
-        if let Some(node) = self.nodes.get_mut(node_index) {
-            let mut node_state = node.state.clone();
-            let mut score = simulate_game(&mut node_state);
-            if self.color != node.state.next_turn {
-                score *= -1;
-            }
-            node.update_node((node.state.next_turn, score));
-            return (node_state.next_turn, score);
+        assert!(node_index < self.nodes.len());
+        let node = &mut self.nodes[node_index];
+        let node_state = node.state.clone();
+        let mut score = simulate_game(&node_state);
+        if self.color != node.state.next_turn {
+            score *= -1;
         }
-        panic!("Node not found");
+        node.update_node((node.state.next_turn, score));
+        return (node_state.next_turn, score);
     }
 
     // Updates the nodes in the MCTS from the given child node to the root based on the result of a simulated game

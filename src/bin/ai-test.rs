@@ -16,26 +16,28 @@ pub fn main() {
         .parse()
         .expect("Not a valid floatingpoint number");
 
-    let mut state = State::new();
-    let mut mcts = MCTS::new("true", a);
-    let mut mcts2 = MCTS::new("false", b);
-    let mut ai_iterations = 500;
-    loop {
-        state = ai_turn(&mut mcts, state.clone(), ai_iterations);
-        if state.remaining_moves == 0 {
-            break;
+    for _ in 0..50 {
+        let mut state = State::new();
+        //let mut mcts = MCTS::new("true", a);
+        //let mut mcts2 = MCTS::new("false", b);
+        let ai_iterations = 10_000;
+        loop {
+            state = ai_turn(&mut MCTS::new("false", a), state.clone(), ai_iterations);
+            if state.remaining_moves == 0 {
+                break;
+            }
+            state = ai_turn(&mut MCTS::new("true", b), state.clone(), ai_iterations);
+            if state.remaining_moves == 0 {
+                break;
+            }
+            //ai_iterations += ai_iterations / 100;
         }
-        state = ai_turn(&mut mcts2, state.clone(), ai_iterations);
-        if state.remaining_moves == 0 {
-            break;
-        }
-        ai_iterations += ai_iterations / 100;
+        win_balance += match caculate_win(state) {
+            Some(Color::WHITE) => -1,
+            Some(Color::BLACK) => 1,
+            None => 0,
+        };
     }
-    win_balance += match caculate_win(state) {
-        Some(Color::WHITE) => 1,
-        Some(Color::BLACK) => -1,
-        None => 0,
-    };
     println!("{win_balance}")
 }
 

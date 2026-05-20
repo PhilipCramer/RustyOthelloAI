@@ -40,10 +40,10 @@ fn main() {
     }
     // Initialize the game state and the Monte Carlo Tree Search (MCTS)
     // The MCTS is initialized with a new node that represents the current game state
-    let mut state = State::new();
-    let mut mcts = MCTS::new(&ai_color, 1.0);
+    let mut state;
+    let mut mcts;
     let mut choice: Result<Action, ()>;
-    let mut ai_iterations: usize = 10_000;
+    let mut ai_iterations: usize = 50_000;
 
     // The main game loop
     loop {
@@ -51,6 +51,7 @@ fn main() {
         match is_my_turn(ai_color.borrow()) {
             Ok(true) => {
                 state = get_game_state();
+                mcts = MCTS::new(&ai_color, 0.5);
                 choice = mcts.search(state, ai_iterations, send_progress);
                 // Gives the ai 2% more iterations every round to balance the game simulations
                 // being shorter
@@ -59,19 +60,15 @@ fn main() {
                 // If a valid action is found, it sends the move to the server and updates the game state
                 if choice.is_ok() {
                     let _ = send_move(&ai_color, Some(choice.clone().unwrap()));
-                    state.do_action(Some(choice.unwrap()));
                 }
                 // If no valid action is found, it sends a pass move to the server and updates the game state
                 else {
                     let _ = send_move(&ai_color, None);
-                    state.do_action(None);
                 }
             }
-            // If it's not the AI's turn, it performs a search using MCTS and waits
+            // If it's not the AI's turn, it waits
             Ok(false) => {
-                let dev_null = |_a: usize, _b: usize, _c: &Color| -> () {};
-                _ = mcts.search(state, 1000, dev_null);
-                //sleep(Duration::from_secs(1));
+                sleep(Duration::from_secs(1));
             }
             Err(e) => {
                 eprintln!("Error checking turn: {}", e);
@@ -127,7 +124,7 @@ fn get_game_state() -> State {
                     resp.into_body()
                         .read_json()
                         .expect("Error parsing response to json"),
-                )
+                );
             }
             Err(_e) => {
                 sleep(delay);

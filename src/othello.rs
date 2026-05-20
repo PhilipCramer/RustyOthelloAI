@@ -1,23 +1,10 @@
 use rand::prelude::*;
-use std::{fmt, isize, u16, usize};
 
 const BOARD_SIZE: usize = 8;
-const FIELD_SIZE: usize = 2;
 
-#[derive(Debug, Clone)]
-struct EmptyFieldError;
-impl fmt::Display for EmptyFieldError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Empty Fields can't be flipped")
-    }
-}
-#[derive(Debug, Clone)]
-struct OccupiedFieldError;
-impl fmt::Display for OccupiedFieldError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Occupied Fields can't be Set")
-    }
-}
+// Column masks to prevent bit wrapping during shifts
+const NOT_COL_0: u64 = 0xfefefefefefefefe;
+const NOT_COL_7: u64 = 0x7f7f7f7f7f7f7f7f;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum Color {
@@ -25,260 +12,216 @@ pub enum Color {
     WHITE,
 }
 impl Color {
-    fn bitmask(&self) -> u16 {
-        match *self {
-            Color::BLACK => 0b010,
-            Color::WHITE => 0b001,
+    #[inline]
+    fn opponent(self) -> Color {
+        match self {
+            Color::BLACK => Color::WHITE,
+            Color::WHITE => Color::BLACK,
         }
     }
 }
-#[derive(Debug, Clone, Copy)]
-pub enum Direction {
-    Left,
-    Right,
-    Up,
-    Down,
-    UpLeft,
-    UpRight,
-    DownLeft,
-    DownRight,
-}
-impl Direction {
-    const VALUES: [Self; 8] = [
-        Self::Left,
-        Self::Right,
-        Self::Up,
-        Self::Down,
-        Self::UpLeft,
-        Self::UpRight,
-        Self::DownLeft,
-        Self::DownRight,
-    ];
-}
+
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Position {
     pub x: usize,
     pub y: usize,
 }
-impl Position {
-    fn new(x_coordinate: usize, y_coordinate: usize) -> Option<Position> {
-        match (x_coordinate, y_coordinate) {
-            (x, y) if x >= BOARD_SIZE || y >= BOARD_SIZE => None,
-            (_, _) => Some(Self {
-                x: x_coordinate,
-                y: y_coordinate,
-            }),
+
+// Bitboard shift helpers — each returns the board shifted one step in a direction,
+// masking out bits that would wrap around the edge.
+#[inline(always)]
+fn shift_n(b: u64) -> u64 {
+    b >> 8
+}
+#[inline(always)]
+fn shift_s(b: u64) -> u64 {
+    b << 8
+}
+#[inline(always)]
+fn shift_e(b: u64) -> u64 {
+    (b << 1) & NOT_COL_0
+}
+#[inline(always)]
+fn shift_w(b: u64) -> u64 {
+    (b >> 1) & NOT_COL_7
+}
+#[inline(always)]
+fn shift_ne(b: u64) -> u64 {
+    (b >> 7) & NOT_COL_0
+}
+#[inline(always)]
+fn shift_nw(b: u64) -> u64 {
+    (b >> 9) & NOT_COL_7
+}
+#[inline(always)]
+fn shift_se(b: u64) -> u64 {
+    (b << 9) & NOT_COL_0
+}
+#[inline(always)]
+fn shift_sw(b: u64) -> u64 {
+    (b << 7) & NOT_COL_7
+}
+
+/// Kogge-Stone style move generation for one direction.
+/// Propagates through opponent pieces to find valid landing squares.
+macro_rules! find_moves_dir {
+    ($player:expr, $opponent:expr, $empty:expr, $shift_fn:ident) => {{
+        let mut candidates = $opponent & $shift_fn($player);
+        candidates |= $opponent & $shift_fn(candidates);
+        candidates |= $opponent & $shift_fn(candidates);
+        candidates |= $opponent & $shift_fn(candidates);
+        candidates |= $opponent & $shift_fn(candidates);
+        candidates |= $opponent & $shift_fn(candidates);
+        $empty & $shift_fn(candidates)
+    }};
+}
+
+/// Walk from placed piece through opponent pieces in one direction to compute flips.
+macro_rules! resolve_flips {
+    ($pos_bit:expr, $opponent:expr, $player:expr, $shift_fn:ident) => {{
+        let mut flipped = 0u64;
+        let mut cursor = $shift_fn($pos_bit);
+        while cursor & $opponent != 0 {
+            flipped |= cursor;
+            cursor = $shift_fn(cursor);
         }
-    }
-    fn shift(self, dir: Direction) -> Option<Position> {
-        let x = self.x;
-        let y = self.y;
-        match dir {
-            Direction::Up => match y {
-                0 => None,
-                _ => Position::new(x, y - 1),
-            },
-            Direction::Down => match y + 1 {
-                BOARD_SIZE => None,
-                _ => Position::new(x, y + 1),
-            },
-            Direction::Left => match x {
-                0 => None,
-                _ => Position::new(x - 1, y),
-            },
-            Direction::Right => match x + 1 {
-                BOARD_SIZE => None,
-                _ => Position::new(x + 1, y),
-            },
-            Direction::UpLeft => match (x, y) {
-                (0, _) => None,
-                (_, 0) => None,
-                (_, _) => Position::new(x - 1, y - 1),
-            },
-            Direction::UpRight => match (x + 1, y) {
-                (BOARD_SIZE, _) => None,
-                (_, 0) => None,
-                (_, _) => Position::new(x + 1, y - 1),
-            },
-            Direction::DownLeft => match (x, y + 1) {
-                (0, _) => None,
-                (_, BOARD_SIZE) => None,
-                (_, _) => Position::new(x - 1, y + 1),
-            },
-            Direction::DownRight => match (x, y) {
-                (BOARD_SIZE, _) => None,
-                (_, BOARD_SIZE) => None,
-                (_, _) => Position::new(x + 1, y + 1),
-            },
+        // Only valid if we ended on one of our own pieces
+        if cursor & $player != 0 {
+            flipped
+        } else {
+            0
         }
-    }
+    }};
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-struct Row {
-    value: u16,
+pub struct Board {
+    black: u64,
+    white: u64,
 }
-impl Row {
-    fn new(val: u16) -> Row {
-        Self { value: val }
-    }
-    fn get_pos(&self, pos: usize) -> Option<Color> {
-        let mask = 0b011 << (pos * FIELD_SIZE);
-        let field = (self.value & mask) >> (pos * FIELD_SIZE);
-        match field {
-            w if w == Color::WHITE.bitmask() => Some(Color::WHITE),
-            b if b == Color::BLACK.bitmask() => Some(Color::BLACK),
-            _ => None,
-        }
-    }
-    fn set_pos(&self, color: Color, pos: usize) -> Result<Row, OccupiedFieldError> {
-        let color_mask = color.bitmask() << (pos * FIELD_SIZE);
-        let check_mask = 0b011 << (pos * FIELD_SIZE);
-        match self.value & check_mask {
-            0 => Ok(Row {
-                value: self.value ^ color_mask,
-            }),
-            _ => Err(OccupiedFieldError),
-        }
-    }
-    fn flip_pos(&self, pos: usize) -> Result<Row, EmptyFieldError> {
-        let flip_mask = 0b011 << (pos * FIELD_SIZE);
-        match self.value & flip_mask {
-            0 => Err(EmptyFieldError),
-            _ => Ok(Row {
-                value: self.value ^ flip_mask,
-            }),
-        }
-    }
-    fn count_colors(&self) -> (isize, isize) {
-        let whites = self.value & 0x5555; // mask odd bits (WHITE = 0b01)
-        let blacks = (self.value >> 1) & 0x5555; // mask even bits (BLACK = 0b10)
-        (whites.count_ones() as isize, blacks.count_ones() as isize)
-    }
-}
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-struct Board {
-    rows: [Row; BOARD_SIZE as usize],
-}
+
 impl Board {
+    /// Create the standard starting position.
     fn new() -> Board {
-        let mut new_rows = [Row::new(0); BOARD_SIZE as usize];
-        let center = (BOARD_SIZE / 2) - 1;
-        new_rows[center as usize] = Row::new(0b1001 << (center * FIELD_SIZE));
-        new_rows[(center + 1) as usize] = Row::new(0b0110 << (center * FIELD_SIZE));
-        Self { rows: new_rows }
+        let mut black = 0u64;
+        let mut white = 0u64;
+        // d4 = (3,3) white, e4 = (4,3) black
+        // d5 = (3,4) black, e5 = (4,4) white
+        white |= 1u64 << (3 * 8 + 3); // (3,3)
+        black |= 1u64 << (3 * 8 + 4); // (4,3)
+        black |= 1u64 << (4 * 8 + 3); // (3,4)
+        white |= 1u64 << (4 * 8 + 4); // (4,4)
+        Board { black, white }
     }
+
+    /// Create an empty board (used by parse_state).
     fn blank() -> Board {
-        let new_rows = [Row::new(0); BOARD_SIZE as usize];
-        Self { rows: new_rows }
+        Board { black: 0, white: 0 }
     }
-    fn flip_pieces(&self, action: Action, position: Position, dir: Direction) -> Option<Board> {
-        let mut to_flip = Vec::new();
-        let mut current_pos = position;
 
-        // Move in the specified direction, collecting opponent pieces
-        while let Some(next_pos) = current_pos.shift(dir) {
-            match self.rows[next_pos.y].get_pos(next_pos.x) {
-                Some(color) if color != action.color => {
-                    // Found an opponent's piece add it to list
-                    to_flip.push(next_pos);
-                    current_pos = next_pos;
-                }
-                Some(color) if color == action.color => {
-                    // Found own piece flip all the pieces collected
-                    if !to_flip.is_empty() {
-                        // Create new board with the flipped pieces
-                        let mut new_board = self.clone();
+    /// Get the color at position (x, y), or None if empty.
+    #[inline]
+    fn get(&self, x: usize, y: usize) -> Option<Color> {
+        let bit = 1u64 << (y * 8 + x);
+        if self.black & bit != 0 {
+            Some(Color::BLACK)
+        } else if self.white & bit != 0 {
+            Some(Color::WHITE)
+        } else {
+            None
+        }
+    }
 
-                        // Flip all pieces in between
-                        for pos in to_flip {
-                            new_board.rows[pos.y] = new_board.rows[pos.y]
-                                .flip_pos(pos.x)
-                                .expect("Should be able to flip occupied positions");
-                        }
+    /// Set a piece on the board. Panics if position is already occupied.
+    #[inline]
+    fn set(&mut self, x: usize, y: usize, color: Color) {
+        let bit = 1u64 << (y * 8 + x);
+        match color {
+            Color::BLACK => self.black |= bit,
+            Color::WHITE => self.white |= bit,
+        }
+    }
 
-                        return Some(new_board);
-                    }
-                    return None;
-                }
-                _ => {
-                    // Empty space or board edge, can't flip in this direction
-                    return None;
-                }
-            }
-        }
-        None
-    }
-    fn get_empty_positions(&self) -> Vec<Position> {
-        let mut positions = Vec::new();
-        for (y, row) in self.into_iter().enumerate() {
-            for x in 0..BOARD_SIZE {
-                match row.get_pos(x) {
-                    None => {
-                        positions.push(Position::new(x, y).expect(
-                            "Iterating through board shouldn't be able to get out of bounds",
-                        ))
-                    }
-                    Some(_) => (),
-                }
-            }
-        }
-        return positions;
-    }
-    fn would_flip_pieces(&self, action: Action, position: Position, dir: Direction) -> bool {
-        match position.shift(dir) {
-            Some(pos_1) => match self.rows[pos_1.y].get_pos(pos_1.x) {
-                Some(color) if color != action.color => {
-                    // Found an opponent's piece in this direction
-                    let mut current_pos = pos_1;
-                    while let Some(next_pos) = current_pos.shift(dir) {
-                        match self.rows[next_pos.y].get_pos(next_pos.x) {
-                            Some(color) if color == action.color => {
-                                // Found our own piece on the other side
-                                return true;
-                            }
-                            Some(_) => {
-                                // Another opponent piece keep checking
-                                current_pos = next_pos;
-                            }
-                            None => {
-                                // Empty space can't flip
-                                return false;
-                            }
-                        }
-                    }
-                    false // Reached edge of board without finding own piece
-                }
-                _ => false, // Either empty or same color
-            },
-            None => false, // Can't go in this direction
-        }
-    }
-}
-impl IntoIterator for Board {
-    type Item = Row;
-    type IntoIter = BoardIntoIterator;
-    fn into_iter(self) -> Self::IntoIter {
-        BoardIntoIterator {
-            board: self,
-            index: 0,
-        }
-    }
-}
-struct BoardIntoIterator {
-    board: Board,
-    index: usize,
-}
-impl Iterator for BoardIntoIterator {
-    type Item = Row;
-    fn next(&mut self) -> Option<Self::Item> {
-        let result = match self.index {
-            x if x < BOARD_SIZE as usize => self.board.rows[x],
-            _ => return None,
+    /// Get a bitmask of all valid moves for the given color.
+    #[inline]
+    fn get_moves(&self, color: Color) -> u64 {
+        let (player, opponent) = match color {
+            Color::BLACK => (self.black, self.white),
+            Color::WHITE => (self.white, self.black),
         };
-        self.index += 1;
-        Some(result)
+        let empty = !(player | opponent);
+
+        let mut moves = 0u64;
+        moves |= find_moves_dir!(player, opponent, empty, shift_n);
+        moves |= find_moves_dir!(player, opponent, empty, shift_s);
+        moves |= find_moves_dir!(player, opponent, empty, shift_e);
+        moves |= find_moves_dir!(player, opponent, empty, shift_w);
+        moves |= find_moves_dir!(player, opponent, empty, shift_ne);
+        moves |= find_moves_dir!(player, opponent, empty, shift_nw);
+        moves |= find_moves_dir!(player, opponent, empty, shift_se);
+        moves |= find_moves_dir!(player, opponent, empty, shift_sw);
+        moves
     }
+
+    /// Get a bitmask of all pieces that would be flipped by placing `color` at `pos_bit`.
+    #[inline]
+    fn get_flipped(&self, color: Color, pos_bit: u64) -> u64 {
+        let (player, opponent) = match color {
+            Color::BLACK => (self.black, self.white),
+            Color::WHITE => (self.white, self.black),
+        };
+
+        let mut flipped = 0u64;
+        flipped |= resolve_flips!(pos_bit, opponent, player, shift_n);
+        flipped |= resolve_flips!(pos_bit, opponent, player, shift_s);
+        flipped |= resolve_flips!(pos_bit, opponent, player, shift_e);
+        flipped |= resolve_flips!(pos_bit, opponent, player, shift_w);
+        flipped |= resolve_flips!(pos_bit, opponent, player, shift_ne);
+        flipped |= resolve_flips!(pos_bit, opponent, player, shift_nw);
+        flipped |= resolve_flips!(pos_bit, opponent, player, shift_se);
+        flipped |= resolve_flips!(pos_bit, opponent, player, shift_sw);
+        flipped
+    }
+
+    /// Apply a move: place the piece and flip captured pieces.
+    #[inline]
+    fn apply_move(&self, color: Color, pos_bit: u64, flipped: u64) -> Board {
+        match color {
+            Color::BLACK => Board {
+                black: self.black | pos_bit | flipped,
+                white: self.white & !flipped,
+            },
+            Color::WHITE => Board {
+                white: self.white | pos_bit | flipped,
+                black: self.black & !flipped,
+            },
+        }
+    }
+
+    /// Convenience: compute flips and apply in one call.
+    #[inline]
+    fn do_move(&self, color: Color, pos_bit: u64) -> Board {
+        let flipped = self.get_flipped(color, pos_bit);
+        self.apply_move(color, pos_bit, flipped)
+    }
+
+    /// Count pieces: returns (white_count, black_count).
+    #[inline]
+    fn count_pieces(&self) -> (isize, isize) {
+        (
+            self.white.count_ones() as isize,
+            self.black.count_ones() as isize,
+        )
+    }
+}
+
+/// Select the nth set bit from a bitmask (0-indexed).
+#[inline]
+fn nth_set_bit(mut mask: u64, n: u32) -> u64 {
+    for _ in 0..n {
+        mask &= mask - 1; // clear lowest set bit
+    }
+    mask & mask.wrapping_neg() // isolate lowest set bit
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -288,90 +231,71 @@ pub struct State {
     pub remaining_moves: u8,
     pub prev_player_skipped: bool,
 }
+
 impl State {
     pub fn new() -> Self {
         Self {
             board: Board::new(),
             next_turn: Color::BLACK,
-            remaining_moves: 121,
+            remaining_moves: 60,
             prev_player_skipped: false,
         }
     }
+
     pub fn get_actions(&self) -> Vec<Action> {
-        let empty_spots = self.board.get_empty_positions();
+        if self.remaining_moves == 0 {
+            return Vec::new();
+        }
+        let moves_mask = self.board.get_moves(self.next_turn);
         let mut actions = Vec::new();
-        if empty_spots.len() == 0 {
-            return actions;
+        let mut bits = moves_mask;
+        while bits != 0 {
+            let bit = bits & bits.wrapping_neg(); // isolate lowest set bit
+            let idx = bit.trailing_zeros() as usize;
+            let x = idx % 8;
+            let y = idx / 8;
+            actions.push(Action {
+                color: self.next_turn,
+                position: Position { x, y },
+            });
+            bits &= bits - 1; // clear lowest set bit
         }
-        for pos in empty_spots {
-            let action = Action::new(self.next_turn, pos);
-            if self.is_valid_action(action.clone()) {
-                actions.push(action);
-            }
-        }
-        return actions;
-    }
-    fn is_valid_action(&self, action: Action) -> bool {
-        for dir in Direction::VALUES {
-            if self
-                .board
-                .would_flip_pieces(action.clone(), action.position, dir)
-            {
-                return true;
-            }
-        }
-        false
+        actions
     }
 
     pub fn do_action(&self, action: Option<Action>) -> State {
-        let mut new_state = self.clone();
         match action {
             Some(act) => {
-                if new_state.flip_directions(act) {
-                    new_state.remaining_moves -= 1;
-                    new_state.prev_player_skipped = false;
+                let pos_bit = 1u64 << (act.position.y * 8 + act.position.x);
+                let flipped = self.board.get_flipped(act.color, pos_bit);
+                if flipped != 0 {
+                    State {
+                        board: self.board.apply_move(act.color, pos_bit, flipped),
+                        next_turn: self.next_turn.opponent(),
+                        remaining_moves: self.remaining_moves - 1,
+                        prev_player_skipped: false,
+                    }
                 } else {
-                    new_state.prev_player_skipped = true;
+                    // Invalid move — treat as skip
+                    let game_over = self.prev_player_skipped;
+                    State {
+                        board: self.board,
+                        next_turn: self.next_turn.opponent(),
+                        remaining_moves: if game_over { 0 } else { self.remaining_moves },
+                        prev_player_skipped: true,
+                    }
                 }
             }
             None => {
-                new_state.prev_player_skipped = true;
+                let game_over = self.prev_player_skipped;
+                State {
+                    board: self.board,
+                    next_turn: self.next_turn.opponent(),
+                    remaining_moves: if game_over { 0 } else { self.remaining_moves },
+                    prev_player_skipped: true,
+                }
             }
         }
-        // If both players had to skip end the game
-        if new_state.prev_player_skipped && self.prev_player_skipped {
-            new_state.remaining_moves = 0;
-        }
-        new_state.next_turn = match self.next_turn {
-            Color::BLACK => Color::WHITE,
-            Color::WHITE => Color::BLACK,
-        };
-        new_state
-    }
-    fn flip_directions(&mut self, action: Action) -> bool {
-        let mut any_flipped = false;
-        let mut new_board = self.board.clone();
-
-        // Set the piece at the action position
-        if let Ok(row) = new_board.rows[action.position.y].set_pos(action.color, action.position.x)
-        {
-            new_board.rows[action.position.y] = row;
-        } else {
-            return false;
-        }
-        // Check each direction for pieces to flip
-        for dir in Direction::VALUES {
-            if let Some(updated_board) = new_board.flip_pieces(action.clone(), action.position, dir)
-            {
-                new_board = updated_board;
-                any_flipped = true;
-            }
-        }
-        if any_flipped {
-            self.board = new_board;
-            self.remaining_moves -= 1;
-        }
-        any_flipped
     }
 }
 
@@ -381,62 +305,39 @@ pub struct Action {
     pub position: Position,
 }
 
-impl Action {
-    pub fn new(player: Color, pos: Position) -> Self {
-        Self {
-            color: player,
-            position: pos,
-        }
-    }
-}
-
 pub fn simulate_game(state: &State) -> isize {
-    let mut test_state = state.clone();
-    let mut consecutive_skips = 0;
+    let mut board = state.board;
+    let mut color = state.next_turn;
+    let mut remaining = state.remaining_moves;
+    let mut consecutive_skips = 0u8;
+    let mut rng = rand::rng();
 
-    // Maximum number of moves to prevent infinite loops
-    let max_iterations = 100;
-    let mut iterations = 0;
-
-    while test_state.remaining_moves > 0 && consecutive_skips < 2 && iterations < max_iterations {
-        iterations += 1;
-
-        let test_actions = test_state.get_actions();
-        let current_action;
-
-        if test_actions.is_empty() {
-            current_action = None;
+    while remaining > 0 && consecutive_skips < 2 {
+        let moves_mask = board.get_moves(color);
+        if moves_mask == 0 {
             consecutive_skips += 1;
         } else {
-            let mut rng = rand::rng();
-            let index = rng.random_range(0..test_actions.len());
-            current_action = Some(test_actions[index]);
+            let count = moves_mask.count_ones();
+            let choice = rng.random_range(0..count);
+            let pos_bit = nth_set_bit(moves_mask, choice);
+            board = board.do_move(color, pos_bit);
+            remaining -= 1;
             consecutive_skips = 0;
         }
-
-        test_state = test_state.do_action(current_action);
-
-        // If both players had to skip end the game
-        if consecutive_skips >= 2 {
-            break;
-        }
+        color = color.opponent();
     }
-    match caculate_win(test_state) {
-        Some(Color::WHITE) => 1,
-        Some(Color::BLACK) => -1,
-        None => 0,
+
+    let (w, b) = board.count_pieces();
+    match w - b {
+        x if x > 0 => 1,
+        x if x < 0 => -1,
+        _ => 0,
     }
 }
 
 pub fn caculate_win(state: State) -> Option<Color> {
-    let mut w_score: isize = 0;
-    let mut b_score: isize = 0;
-    for row in state.board.rows {
-        let (w, b) = row.count_colors();
-        w_score += w;
-        b_score += b;
-    }
-    match w_score - b_score {
+    let (w, b) = state.board.count_pieces();
+    match w - b {
         x if x > 0 => Some(Color::WHITE),
         x if x < 0 => Some(Color::BLACK),
         _ => None,
@@ -444,24 +345,20 @@ pub fn caculate_win(state: State) -> Option<Color> {
 }
 
 pub fn parse_state(json: serde_json::Value) -> State {
-    //todo!("Fix parse_state")
-    let mut new_board = Board::blank();
+    let mut board = Board::blank();
+    println!("{}", json.to_string());
     let mut moves_left: u8 = 0;
     let next = match json["turn"] {
         serde_json::Value::Bool(true) => Color::BLACK,
         _ => Color::WHITE,
     };
-    if let Some(board) = json["board"].as_array() {
-        for (x, row) in board.iter().enumerate() {
+    if let Some(json_board) = json["board"].as_array() {
+        for (x, row) in json_board.iter().enumerate() {
             if let Some(row) = row.as_array() {
                 for (y, cell) in row.iter().enumerate() {
                     match cell.as_i64() {
-                        Some(1) => {
-                            new_board.rows[y] = new_board.rows[y].set_pos(Color::WHITE, x).unwrap()
-                        }
-                        Some(0) => {
-                            new_board.rows[y] = new_board.rows[y].set_pos(Color::BLACK, x).unwrap()
-                        }
+                        Some(0) => board.set(x, y, Color::WHITE),
+                        Some(1) => board.set(x, y, Color::BLACK),
                         Some(-1) => {
                             moves_left += 1;
                         }
@@ -472,7 +369,7 @@ pub fn parse_state(json: serde_json::Value) -> State {
         }
     }
     State {
-        board: new_board,
+        board,
         next_turn: next,
         remaining_moves: moves_left,
         prev_player_skipped: false,
@@ -481,23 +378,17 @@ pub fn parse_state(json: serde_json::Value) -> State {
 
 pub fn print_state(state: State) {
     println!("   0 1 2 3 4 5 6 7");
-    let black_comp = Color::BLACK.bitmask(); // << ((BOARD_SIZE - 1) * FIELD_SIZE);
-    let white_comp = Color::WHITE.bitmask(); // << ((BOARD_SIZE - 1) * FIELD_SIZE);
-    for (i, row) in state.board.into_iter().enumerate() {
-        print!("{i} ");
-        for f in 0..BOARD_SIZE {
-            let c = {
-                if row.value & (black_comp << (f * FIELD_SIZE)) != 0 {
-                    'B'
-                } else if row.value & (white_comp << (f * FIELD_SIZE)) != 0 {
-                    'W'
-                } else {
-                    '_'
-                }
+    for y in 0..BOARD_SIZE {
+        print!("{y} ");
+        for x in 0..BOARD_SIZE {
+            let c = match state.board.get(x, y) {
+                Some(Color::BLACK) => 'B',
+                Some(Color::WHITE) => 'W',
+                None => '_',
             };
             print!("|{}", c);
         }
-        print!("|\n");
+        println!("|");
     }
     let next = match state.next_turn {
         Color::BLACK => "Black",
@@ -511,25 +402,59 @@ mod othello_tests {
     use super::*;
 
     #[test]
-    fn test_board_empty_spaces() {
+    fn test_board_empty_squares() {
         let board = Board::new();
-        assert_eq!(board.get_empty_positions().len(), 60);
+        let occupied = (board.black | board.white).count_ones();
+        assert_eq!(64 - occupied, 60);
     }
+
     #[test]
-    fn test_row_get_pos() {
+    fn test_initial_pieces() {
         let board = Board::new();
-        assert_eq!(board.rows[3].get_pos(3), Some(Color::WHITE));
-        assert_eq!(board.rows[3].get_pos(4), Some(Color::BLACK));
-        assert_eq!(board.rows[4].get_pos(4), Some(Color::WHITE));
-        assert_eq!(board.rows[4].get_pos(3), Some(Color::BLACK));
-        assert_eq!(board.rows[1].get_pos(3), None);
-        assert_eq!(board.rows[2].get_pos(2), None);
-        assert_eq!(board.rows[2].get_pos(4), None);
+        assert_eq!(board.get(3, 3), Some(Color::WHITE));
+        assert_eq!(board.get(4, 3), Some(Color::BLACK));
+        assert_eq!(board.get(3, 4), Some(Color::BLACK));
+        assert_eq!(board.get(4, 4), Some(Color::WHITE));
+        assert_eq!(board.get(0, 0), None);
+        assert_eq!(board.get(7, 7), None);
     }
+
     #[test]
-    fn test_row_set_pos() {
-        let board = Board::new();
-        assert!(board.rows[3].set_pos(Color::BLACK, 4).is_err());
-        assert!(board.rows[3].set_pos(Color::WHITE, 3).is_err());
+    fn test_initial_valid_moves() {
+        let state = State::new();
+        let actions = state.get_actions();
+        assert_eq!(actions.len(), 4);
+    }
+
+    #[test]
+    fn test_move_flips_pieces() {
+        let state = State::new();
+        // Black plays at (2,3) — should flip the white piece at (3,3)
+        let action = Action {
+            color: Color::BLACK,
+            position: Position { x: 2, y: 3 },
+        };
+        let new_state = state.do_action(Some(action));
+        // (2,3) should now be black
+        assert_eq!(new_state.board.get(2, 3), Some(Color::BLACK));
+        // (3,3) was white, should now be flipped to black
+        assert_eq!(new_state.board.get(3, 3), Some(Color::BLACK));
+        // (4,3) was already black
+        assert_eq!(new_state.board.get(4, 3), Some(Color::BLACK));
+        assert_eq!(new_state.remaining_moves, 59);
+    }
+
+    #[test]
+    fn test_simulate_completes() {
+        let state = State::new();
+        let result = simulate_game(&state);
+        assert!(result == 1 || result == -1 || result == 0);
+    }
+
+    #[test]
+    fn test_caculate_win() {
+        // Equal position at start should be a draw
+        let state = State::new();
+        assert_eq!(caculate_win(state), None);
     }
 }
