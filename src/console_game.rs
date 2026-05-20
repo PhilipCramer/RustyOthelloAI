@@ -14,20 +14,24 @@ enum GameCommand {
 
 pub fn console_game() {
     let mut win_balance: isize = 0;
-    let a = 1.0;
+    let a = 0.4;
+    print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
     println!("Game mode: player vs AI\n");
     let mut state = State::new();
     let mut mcts = MCTS::new("true", a);
+    //let mut mcts_2 = MCTS::new("false", a + 0.3);
     _ = std::io::stdout().flush();
-    let mut ai_iterations = 20000;
+    let mut ai_iterations = 50_000;
     loop {
         print_state(state);
-        state = player_turn(state.clone());
+        state = player_turn(state);
+        //state = ai_turn(&mut mcts_2, state.clone(), ai_iterations);
         if state.remaining_moves == 0 {
             break;
         }
         print_state(state);
-        state = ai_turn(&mut mcts, state.clone(), ai_iterations);
+        //state = player_turn(state.clone());
+        state = ai_turn(&mut mcts, state, ai_iterations);
         ai_iterations += ai_iterations / 100;
 
         if state.remaining_moves == 0 {
@@ -81,7 +85,7 @@ fn player_turn(state: State) -> State {
             }
             GameCommand::MOVE(x_index, y_index) => {
                 player_choice = Some(Action {
-                    color: Color::BLACK,
+                    color: state.next_turn,
                     position: Position {
                         x: x_index,
                         y: y_index,

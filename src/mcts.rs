@@ -1,5 +1,5 @@
 use crate::othello::{simulate_game, Action, Color, State};
-use rand::prelude::*;
+use rand::{rngs::SmallRng, RngExt};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -46,6 +46,7 @@ pub struct MCTS {
     tree: Vec<Vec<usize>>,
     parents: Vec<Option<usize>>,
     state_map: HashMap<State, usize>,
+    rng: SmallRng,
 }
 
 impl MCTS {
@@ -63,6 +64,7 @@ impl MCTS {
             state_map: HashMap::new(),
             size: 0,
             nodes: Vec::new(),
+            rng: rand::make_rng(),
         }
     }
 
@@ -74,10 +76,10 @@ impl MCTS {
         iterations: usize,
         send_status: fn(usize, usize, &Color),
     ) -> Result<Action, ()> {
-        if let Some(root) = self.state_map.get(&from).cloned() {
+        if let Some(&root) = self.state_map.get(&from) {
             for i in 0..iterations {
                 if i % 1000 == 0 {
-                    _ = send_status(i, iterations, &self.color);
+                    send_status(i, iterations, &self.color);
                 }
                 let selected_node = self.select(root);
                 let expanded_node = self.expand(selected_node);
@@ -97,7 +99,7 @@ impl MCTS {
         self.state_map.insert(state, self.size);
         self.tree.push(Vec::new());
         self.parents.push(parent);
-        self.nodes.push(new_node.clone());
+        self.nodes.push(new_node);
         self.size += 1;
     }
 
@@ -145,7 +147,7 @@ impl MCTS {
 
         if untried_actions.is_empty() {
             // No actions to try add skip node
-            let new_state = self.nodes[node_index].state.clone().do_action(None);
+            let new_state = self.nodes[node_index].state.do_action(None);
             self.add_node(new_state, None, Some(node_index));
             self.tree[node_index].push(self.size - 1);
 
@@ -153,18 +155,16 @@ impl MCTS {
             return self.size - 1;
         } else {
             // Pick one random action to expand (not all at once)
-            let mut rng = rand::rng();
-            let action_index = rng.random_range(0..untried_actions.len());
-            let action = untried_actions[action_index].clone();
+            let action_index = self.rng.random_range(0..untried_actions.len());
+            let action = untried_actions[action_index];
 
             // Remove this action from untried_actions in the original node
-            self.nodes[node_index].untried_actions.remove(action_index);
+            self.nodes[node_index]
+                .untried_actions
+                .swap_remove(action_index);
 
             // Create a new node with this action
-            let new_state = self.nodes[node_index]
-                .state
-                .clone()
-                .do_action(Some(action.clone()));
+            let new_state = self.nodes[node_index].state.clone().do_action(Some(action));
             self.add_node(new_state, Some(action), Some(node_index));
             self.tree[node_index].push(self.size - 1);
 
@@ -175,16 +175,15 @@ impl MCTS {
 
     // Simulates a game from the given node and returns the result
     fn simulate(&mut self, node_index: usize) -> (Color, isize) {
-        if let Some(node) = self.nodes.get_mut(node_index) {
-            let mut node_state = node.state.clone();
-            let mut score = simulate_game(&mut node_state);
-            if self.color != node.state.next_turn {
-                score *= -1;
-            }
-            node.update_node((node.state.next_turn, score));
-            return (node_state.next_turn, score);
+        assert!(node_index < self.nodes.len());
+        let node = &mut self.nodes[node_index];
+        let node_state = node.state.clone();
+        let mut score = simulate_game(&node_state);
+        if self.color != node.state.next_turn {
+            score *= -1;
         }
-        panic!("Node not found");
+        node.update_node((node.state.next_turn, score));
+        return (node_state.next_turn, score);
     }
 
     // Updates the nodes in the MCTS from the given child node to the root based on the result of a simulated game
@@ -226,7 +225,7 @@ impl MCTS {
                 max_visits = node.visits;
             }
         }
-        let best_node = self.nodes.get(best_index).unwrap().clone();
+        let best_node = &self.nodes[best_index];
         if best_node.action.is_none() {
             return Err(());
         };
